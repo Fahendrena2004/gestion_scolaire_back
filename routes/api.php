@@ -11,3 +11,5 @@ Route::get('/teste', function () {
         'status' => 'ok',
     ]);
 });
+
+//teste

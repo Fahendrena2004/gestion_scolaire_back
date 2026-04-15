@@ -2,19 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-
-class Utilisateur extends Authenticatable{
+class Utilisateur extends Authenticatable
+{
     use HasFactory, Notifiable;
 
+    
     protected $table = 'utilisateurs';
 
-
-    protected $fillable =[
+    
+    protected $fillable = [
         'nom',
         'prenom',
         'telephone',
@@ -22,48 +22,54 @@ class Utilisateur extends Authenticatable{
         'password',
         'role',
         'status',
-        'remember_token',
-        'created_at',
-        'update_at'
     ];
 
+    
     protected $hidden = [
         'password',
-        'remember_token'
+        'remember_token',
     ];
 
+    
 
-
-    public function setPasswordAttribute($value){
+    
+    public function setPasswordAttribute($value)
+    {
         if (!empty($value)) {
-        $this->attributes['password'] = bcrypt($value);
-        };
+            $this->attributes['password'] = bcrypt($value);
+        }
     }
 
-
-    public function setFullName(){
-        return $this->nom.' '.$this->prenom;
+    /**
+     * 🧠 Accesseur : nom complet
+     * Utilisation : $user->full_name
+     */
+    public function getFullNameAttribute()
+    {
+        return $this->nom . ' ' . $this->prenom;
     }
 
-
-    public function isAdmin(){
+    
+    public function isAdmin()
+    {
         return $this->role === 'admin';
     }
 
-
-    public function isCaissier(){
+   
+    public function isCaissier()
+    {
         return $this->role === 'caissier';
     }
 
-
-    public function isActif(){
+    
+    public function isActif()
+    {
         return $this->status === 'actif';
     }
 
-
-    public function isInactif(){
+    
+    public function isInactif()
+    {
         return $this->status === 'inactif';
     }
-
-
 }

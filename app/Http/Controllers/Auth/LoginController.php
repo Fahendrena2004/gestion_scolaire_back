@@ -141,7 +141,6 @@ class LoginController extends Controller
 
         }
 
-
         /*
             fonction responsable de la deconnexion de l'utilisateur
         */

@@ -17,5 +17,5 @@ use OpenApi\Attributes as OA;
 
 class OpenApi
 {
-    // Ce fichier est uniquement pour la configuration globale Swagger
+    //la configuration globale Swagger
 }

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
+
 
 
 class Utilisateur extends Authenticatable{
@@ -33,7 +33,7 @@ class Utilisateur extends Authenticatable{
         'remember_token'
     ];
 
-    
+
 
 
     public function setPasswordAttribute($value){

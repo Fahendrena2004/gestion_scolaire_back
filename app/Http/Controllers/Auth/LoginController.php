@@ -21,7 +21,6 @@ class LoginController extends Controller
         */
         public function login(Request $request)
         {
-
             //Validation des données d'entrée
             $validator = Validator::make($request->all(), [
                 'email' => 'required|email',
@@ -146,27 +145,43 @@ class LoginController extends Controller
         */
         public function logout(Request $request)
         {
+            try {
 
-            $user = Auth::user();
-            $sessionId = session()->getId();
 
-            if ($user) {
-                DB::table('sessions')
-                    ->where('id', $sessionId)
-                    ->delete();
+                // Récupérer les infos
+                $userId = Auth::id();
+                $sessionId = session()->getId();
+                $userEmail = Auth::user() ? Auth::user()->email : null;
+
+                // Supprimer de la base de données session
+                if ($sessionId) {
+                    DB::table('sessions')->where('id', $sessionId)->delete();
+                }
+
+                //  Déconnecter
+                Auth::logout();
+
+
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Déconnexion réussie',
+                    'data' => [
+                        'user_id' => $userId,
+                        'user_email' => $userEmail,
+                        'session_id' => $sessionId
+                    ]
+                ], 200);
+
+            } catch (\Exception $e) {
+                Log::error('Erreur déconnexion: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur lors de la déconnexion',
+                    'error' => $e->getMessage()
+                ], 500);
             }
-
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Déconnexion réussie'
-            ]);
-
         }
-
 
 
 }

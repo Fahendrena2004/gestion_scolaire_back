@@ -15,4 +15,4 @@ Route::get('/teste', function () {
 
 // Routes pour Authentification
 Route::post('/login', [LoginController::class, 'login']);
-
+Route::post('/logout', [LoginController::class, 'logout']);

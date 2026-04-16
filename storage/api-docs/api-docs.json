@@ -1,43 +1,230 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "Gestion Sco",
-        "description": "Documentation API Laravel",
+        "title": "Gestion Sco API",
+        "description": "Documentation API Laravel - Auth session-based",
         "version": "1.0.0"
     },
     "servers": [
         {
-            "url": "http://localhost:8000"
+            "url": "http://localhost:8000",
+            "description": "Serveur local"
         }
     ],
     "paths": {
-        "/api/teste": {
-            "get": {
+        "/api/login": {
+            "post": {
                 "tags": [
-                    "System"
+                    "Auth"
                 ],
-                "operationId": "a27bb2f9b8255b1cdaba4f9257912c26",
+                "summary": "Connexion utilisateur",
+                "description": "Connexion et création de session Laravel",
+                "operationId": "fd38eab35a3cc28d00ada587f6955506",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "example": "test@mail.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "Connexion réussie",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Connexion réussie"
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "nom": {
+                                                    "type": "string"
+                                                },
+                                                "prenom": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                },
+                                                "role": {
+                                                    "type": "string"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "session_id": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Erreur authentification"
+                    },
+                    "422": {
+                        "description": "Erreur validation"
+                    }
+                }
+            }
+        },
+        "/api/register": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Inscription utilisateur",
+                "description": "Créer un nouvel utilisateur",
+                "operationId": "5e9dd82c858753ad481f146678e34951",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nom",
+                                    "prenom",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "nom": {
+                                        "type": "string"
+                                    },
+                                    "prenom": {
+                                        "type": "string"
+                                    },
+                                    "telephone": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Utilisateur créé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "user": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur validation"
+                    }
+                }
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Déconnexion utilisateur",
+                "description": "Suppression de la session utilisateur",
+                "operationId": "d2f0239468d539b07f33e62fab239518",
+                "responses": {
+                    "200": {
+                        "description": "Déconnexion réussie",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Déconnexion réussie"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer"
+                                                },
+                                                "user_email": {
+                                                    "type": "string"
+                                                },
+                                                "session_id": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
                     }
                 }
             }
         }
     },
-    "components": {
-        "securitySchemes": {
-            "bearerAuth": {
-                "type": "http",
-                "bearerFormat": "Sanctum",
-                "scheme": "bearer"
-            }
-        }
-    },
     "tags": [
         {
-            "name": "System",
-            "description": "System"
+            "name": "Auth",
+            "description": "Auth"
         }
     ]
 }

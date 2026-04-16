@@ -5,29 +5,17 @@ namespace App\Swagger;
 use OpenApi\Attributes as OA;
 
 #[OA\Info(
-    title: 'Gestion Sco',
+    title: 'Gestion Sco API',
     version: '1.0.0',
-    description: 'Documentation API Laravel'
+    description: 'Documentation API Laravel - Auth session-based'
 )]
-#[OA\Server(url: 'http://localhost:8000')]
-#[OA\SecurityScheme(
-    securityScheme: 'bearerAuth',
-    type: 'http',
-    scheme: 'bearer',
-    bearerFormat: 'Sanctum'
+
+#[OA\Server(
+    url: 'http://localhost:8000',
+    description: 'Serveur local'
 )]
+
 class OpenApi
 {
-    #[OA\Get(
-        path: '/api/teste',
-        tags: ['System'],
-        responses: [
-            new OA\Response(response: 200, description: 'OK'),
-        ]
-    )]
-   
-
-    public function notificationSend(): void
-    {
-    }
+    // Ce fichier est uniquement pour la configuration globale Swagger
 }

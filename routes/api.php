@@ -15,12 +15,6 @@ Route::get('/teste', function () {
     ]);
 });
 
-<<<<<<< HEAD
-//Routes pour l'inscription utilisateur
-Route::post('/register', [RegisterController::class, 'register']);
-
-=======
->>>>>>> 0d718204741f11a6f4f8f62f054cce3db069840d
 // Routes pour Authentification
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/login', [LoginController::class, 'login']);

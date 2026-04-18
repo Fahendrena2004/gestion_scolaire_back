@@ -20,6 +20,11 @@ return new class extends Migration
             $table->enum('sexe', ['M', 'F']);
             $table->text('adresse')->nullable();
             $table->string('matricule',10)->unique();
+
+            $table->foreignId('classe_id')
+                  ->constrained('classes')
+                  ->cascadeOnDelete();
+                  
             $table->timestamps();
         });
     }

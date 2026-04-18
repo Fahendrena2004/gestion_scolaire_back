@@ -8,16 +8,16 @@ use App\Models\Inscription\Eleve;
 class AutreInformation extends Model
 {
     //
-    protected $table = 'autres_informations';
+    protected $table = 'autre_information';
 
     protected $fillable = [
-        'eleve_id',
+        'id_eleve',
         'nom_champ',
         'valeur_champ'
     ];
 
     public function eleve()
     {
-        return $this->belongsTo(Eleve::class);
+        return $this->belongsTo(Eleve::class, 'id_eleve');
     }
 }

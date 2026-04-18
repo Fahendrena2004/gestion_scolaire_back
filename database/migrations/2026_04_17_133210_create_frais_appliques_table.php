@@ -17,7 +17,8 @@ return new class extends Migration
                     ->constrained('type_frais')
                     ->onDelete('cascade')
                     ->onUpdate('cascade');
-                    
+
+            
             $table->decimal('montant', 10, 2)->default(0);
             $table->foreignId('id_inscription')
                     ->constrained('inscriptions')

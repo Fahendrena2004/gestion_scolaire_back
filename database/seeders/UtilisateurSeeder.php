@@ -13,24 +13,28 @@ class UtilisateurSeeder extends Seeder
      */
     public function run(): void
     {
-        Utilisateur::create([
-            'nom' => 'Admin',
-            'prenom' => 'Principal',
-            'telephone' => '0321234567',
-            'email' => 'admin@gmail.com',
-            'password' => 'admin123',
-            'role' => 'admin',
-            'status' => 'actif',
-        ]);
+        Utilisateur::firstOrCreate(
+            ['email' => 'admin@gmail.com'],
+            [
+                'nom' => 'Admin',
+                'prenom' => 'Principal',
+                'telephone' => '0321234567',
+                'password' => 'admin123',
+                'role' => 'admin',
+                'status' => 'actif',
+            ]
+        );
 
-        Utilisateur::create([
-            'nom' => 'Cassier',
-            'prenom' => 'Principal',
-            'telephone' => '0381234567',
-            'email' => 'Cassier@gmail.com',
-            'password' => 'cassier123',
-            'role' => 'Cassier',
-            'status' => 'actif',
-        ]);
+        Utilisateur::firstOrCreate(
+            ['email' => 'caissier123@gmail.com'],
+            [
+                'nom' => 'Caissier',
+                'prenom' => 'Principal',
+                'telephone' => '0381234567',
+                'password' => 'caissier123',
+                'role' => 'caissier',
+                'status' => 'actif',
+            ]
+        );
     }
 }

@@ -10,8 +10,8 @@ class FraisApplique extends Model
     protected $table = 'frais_appliques';
 
     protected $fillable = [
-        'type_frais_id',
-        'inscription_id',
+        'id_frais',
+        'id_inscription',
         'montant'
     ];
 

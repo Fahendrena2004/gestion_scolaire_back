@@ -28,6 +28,11 @@ return new class extends Migration
                   ->onDelete('cascade')
                   ->onUpdate('cascade');
 
+            $table->foreignId('utilisateur_id')
+                  ->nullable()
+                  ->constrained('utilisateurs')
+                  ->onDelete('set null');
+
             $table->date('date_inscription');
             $table->boolean('parascolaire')->default(false);
             $table->boolean('cantine')->default(false);
@@ -36,6 +41,8 @@ return new class extends Migration
             $table->decimal('montant_net', 10, 2)->default(0);
 
             $table->timestamps();
+
+            $table->unique(['id_eleve', 'id_annee_scolaire'], 'unique_inscription_par_an');
         });
     }
 

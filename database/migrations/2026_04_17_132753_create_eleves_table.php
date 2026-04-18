@@ -19,7 +19,16 @@ return new class extends Migration
             $table->string('lieu_naissance',150);
             $table->enum('sexe', ['M', 'F']);
             $table->text('adresse')->nullable();
+<<<<<<< HEAD
             $table->string('matricule',50)->unique();
+=======
+            $table->string('matricule',10)->unique();
+
+            $table->foreignId('classe_id')
+                  ->constrained('classes')
+                  ->cascadeOnDelete();
+                  
+>>>>>>> 48dff6dfadc5920b822a512263522ca18a4f50f1
             $table->timestamps();
 
         });

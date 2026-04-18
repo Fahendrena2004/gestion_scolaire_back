@@ -21,9 +21,6 @@ return new class extends Migration
             $table->text('adresse')->nullable();
             $table->string('matricule',50)->unique();
 
-            $table->foreignId('classe_id')
-                  ->constrained('classes')
-                  ->cascadeOnDelete();
 
             $table->timestamps();
 

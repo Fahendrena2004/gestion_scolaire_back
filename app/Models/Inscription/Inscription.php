@@ -23,21 +23,21 @@ class Inscription extends Model
 
     public function AnneeScolaire()
     {
-        return $this->belongsTo(AnneeScolaire::class);
+        return $this->belongsTo(AnneeScolaire::class, 'id_annee_scolaire', 'id');
     }
 
     public function Classe()
     {
-        return $this->belongsTo(Classe::class);
+        return $this->belongsTo(Classe::class, 'id_classe', 'id');
     }
 
      public function Eleve()
     {
-        return $this->belongsTo(Eleve::class);
+        return $this->belongsTo(Eleve::class, 'id_eleve', 'id');
     }
 
     public function Utilisateur(){
-        return $this->belongsTo(Utilisateur::class);
+        return $this->belongsTo(Utilisateur::class, 'utilisateur_id', 'id');
     }
 
     public function paiements()
@@ -58,5 +58,9 @@ class Inscription extends Model
         return $this->reste_a_payer <= 0;
     }
 
+    public function fraisAppliques()
+    {
+        return $this->hasMany(FraisApplique::class, 'id_inscription');
+    }
 
 }

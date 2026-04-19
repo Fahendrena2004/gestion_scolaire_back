@@ -152,7 +152,7 @@ class InscriptionService
             'classe.niveau',
             'anneeScolaire',
             'fraisAppliques.typeFrais',
-            'Paiements'
+            'paiements'
         ])->find($id);
     }
 }

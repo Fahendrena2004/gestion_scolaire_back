@@ -40,12 +40,35 @@ class InscriptionController extends Controller
             return response()->json($result, 201);
 
         } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+            $statusCode = 500;
+
+            //Erreurs spécifiques classe
+            if (str_contains($errorMessage, 'Classe non trouvée')) {
+                $errorMessage = 'La classe sélectionnée n\'existe pas. Vérifiez que le classe_id est correct.';
+                $statusCode = 404;
+            //
+            //Niveau selectionne est incorrect
+            } elseif (str_contains($errorMessage, 'niveau')) {
+                $errorMessage = 'Le niveau sélectionné n\'existe pas. Vérifiez que le niveau_id est correct.';
+                $statusCode = 404;
+            //verification erreur annne
+            } elseif (str_contains($errorMessage, 'année scolaire')) {
+                $errorMessage = 'Aucune année scolaire active. Contactez l\'administrateur.';
+                $statusCode = 404;
+
+            //Verification doublons eleve
+            } elseif (str_contains($errorMessage, 'déjà inscrit')) {
+                $errorMessage = 'Cet élève est déjà inscrit pour cette année scolaire.';
+                $statusCode = 409;
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ], 500);
+                'message' => $errorMessage,
+                'error' => $e->getMessage(),
+                'code' => 'INSCRIPTION_ERROR'
+            ], $statusCode);
         }
     }
 
@@ -94,7 +117,7 @@ class InscriptionController extends Controller
                         ];
                     }),
                 ],
-                // ✅ AJOUTER LES PAIEMENTS
+                //  AJOUTER LES PAIEMENTS
                 'paiements' => $inscription->paiements->map(function($paiement) {
                     return [
                         'id' => $paiement->id,

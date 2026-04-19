@@ -40,18 +40,15 @@ class ClasseService
     // Récupérer tous les cycles disponibles
     public function getCycles(): array
     {
-        return Cache::remember('cycles', 3600, function () {
             return Niveau::select('cycle')->distinct()->get()->toArray();
-        });
+
     }
 
 
     // Récupérer les niveaux d'un cycle donné
     public function getNiveauxByCycle(string $cycle)
     {
-        return Cache::remember("niveaux_cycle_{$cycle}", 3600, function () use ($cycle) {
             return Niveau::where('cycle', $cycle)->get();
-        });
     }
 
 
@@ -64,11 +61,10 @@ class ClasseService
             return collect([]);
         }
 
-        return Cache::remember("classes_niveau_{$niveauId}_annee_{$anneeActive->id}", 3600, function () use ($niveauId, $anneeActive) {
-            return Classe::where('niveau_id', $niveauId)
-                         ->where('anneeScolaire_id', $anneeActive->id)
-                         ->get(['id', 'nom_classe']);
-        });
+
+        return Classe::where('niveau_id', $niveauId)
+                     ->where('anneeScolaire_id', $anneeActive->id)
+                     ->get(['id', 'nom_classe']);
     }
 
     // Valider l'appartenance d'une classe à un niveau

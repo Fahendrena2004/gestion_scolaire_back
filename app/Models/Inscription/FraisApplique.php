@@ -15,13 +15,13 @@ class FraisApplique extends Model
         'montant'
     ];
 
-        public function typeFrais()
-        {
-            return $this->belongsTo(TypeFrais::class);
-        }
+    public function typeFrais()
+    {
+        return $this->belongsTo(TypeFrais::class, 'id_frais');
+    }
 
-        public function inscription()
-        {
-            return $this->belongsTo(Inscription::class);
-        }
+    public function inscription()
+    {
+        return $this->belongsTo(Inscription::class, 'id_inscription');
+    }
 }

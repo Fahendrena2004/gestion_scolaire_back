@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-
+use App\Models\Utilisateur;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -21,5 +21,7 @@ class DatabaseSeeder extends Seeder
         $this->call(NiveauSeeder::class);
         $this->call(TypeFraisSeeder::class);
         $this->call(ClasseSeeder::class);
-    }
+        $this->call(UtilisateurSeeder::class);
+        $this->call([MatieresSeeder::class,]);
+}
 }

@@ -11,24 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('notes', function (Blueprint $table) {
+        Schema::create('detail_bulletins', function (Blueprint $table) {
             $table->id();
-            $table->decimal('valeur', 10, 2);
-            $table->string('periode', 50);
-            $table->date('date');
-            $table->string('type', 50);
-
-
+            $table->decimal('moyenne_matiere', 10, 2);
+            $table->integer('rang_matiere');
+            $table->string('appreciation', 255);
+            $table->foreignId('bulletin_id')
+                    ->constrained('bulletins')
+                    ->onDelete('cascade')
+                    ->onUpdate('cascade');
+                    
             $table->foreignId('matiere_id')
                     ->constrained('matieres')
                     ->onDelete('cascade')
                     ->onUpdate('cascade');
-
-            $table->foreignId('inscription_id')
-                    ->constrained('inscriptions')
-                    ->onDelete('cascade')
-                    ->onUpdate('cascade');
-            $table->string('appreciation', 255)->nullable();
+                    
+                    
             $table->timestamps();
         });
     }
@@ -38,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('notes');
+        Schema::dropIfExists('detail_bulletins');
     }
 };

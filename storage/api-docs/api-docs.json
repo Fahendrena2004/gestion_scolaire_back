@@ -763,6 +763,1167 @@
                     }
                 }
             }
+        },
+        "/api/notes": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Lister les notes",
+                "description": "Retourne la liste des notes pour une inscription et une période donnée",
+                "operationId": "7af9fdac42c17ea6877a04b8c004012f",
+                "parameters": [
+                    {
+                        "name": "inscription_id",
+                        "in": "query",
+                        "description": "ID de l'inscription",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "periode",
+                        "in": "query",
+                        "description": "Période (TRIMESTRE_1, TRIMESTRE_2, TRIMESTRE_3, SEMESTRE_1, SEMESTRE_2)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "TRIMESTRE_1"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "inscription_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "matiere_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "valeur": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 15.5
+                                                    },
+                                                    "periode": {
+                                                        "type": "string",
+                                                        "example": "TRIMESTRE_1"
+                                                    },
+                                                    "date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2026-04-20"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "COMPOSITION"
+                                                    },
+                                                    "appreciation": {
+                                                        "type": "string",
+                                                        "example": "Très bon travail"
+                                                    },
+                                                    "matiere": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "nom": {
+                                                                "type": "string"
+                                                            },
+                                                            "coefficient": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Ajouter une note",
+                "description": "Crée une nouvelle note pour un élève",
+                "operationId": "598d9b8b8738ae0ce885595cd7f25db1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "matiere_id",
+                                    "valeur",
+                                    "periode",
+                                    "date",
+                                    "type"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "matiere_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "valeur": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 15.5
+                                    },
+                                    "periode": {
+                                        "type": "string",
+                                        "example": "TRIMESTRE_1",
+                                        "enum": [
+                                            "TRIMESTRE_1",
+                                            "TRIMESTRE_2",
+                                            "TRIMESTRE_3",
+                                            "SEMESTRE_1",
+                                            "SEMESTRE_2"
+                                        ]
+                                    },
+                                    "date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-04-20"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "example": "COMPOSITION",
+                                        "enum": [
+                                            "DEVOIR",
+                                            "COMPOSITION",
+                                            "EXAMEN"
+                                        ]
+                                    },
+                                    "appreciation": {
+                                        "type": "string",
+                                        "example": "Très bonne compréhension",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Note créée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Note ajoutée avec succès"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "inscription_id": {
+                                                    "type": "integer"
+                                                },
+                                                "matiere_id": {
+                                                    "type": "integer"
+                                                },
+                                                "valeur": {
+                                                    "type": "number"
+                                                },
+                                                "periode": {
+                                                    "type": "string"
+                                                },
+                                                "date": {
+                                                    "type": "string"
+                                                },
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                },
+                                                "matiere": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "nom": {
+                                                            "type": "string"
+                                                        },
+                                                        "coefficient": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                }
+            }
+        },
+        "/api/notes/{id}": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Afficher une note",
+                "description": "Retourne les détails d'une note spécifique",
+                "operationId": "e244f1a5bf42041b6cd749eda3edc74a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "inscription_id": {
+                                                    "type": "integer"
+                                                },
+                                                "matiere_id": {
+                                                    "type": "integer"
+                                                },
+                                                "valeur": {
+                                                    "type": "number"
+                                                },
+                                                "periode": {
+                                                    "type": "string"
+                                                },
+                                                "date": {
+                                                    "type": "string"
+                                                },
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                },
+                                                "matiere": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "nom": {
+                                                            "type": "string"
+                                                        },
+                                                        "coefficient": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Note non trouvée"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Modifier une note",
+                "description": "Met à jour une note existante",
+                "operationId": "c5fb62f5c3faec77dedc704e39d698e8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "valeur": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 16
+                                    },
+                                    "date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-04-21"
+                                    },
+                                    "appreciation": {
+                                        "type": "string",
+                                        "example": "Excellent travail !"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Note modifiée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Note modifiée avec succès"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "valeur": {
+                                                    "type": "number"
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                },
+                                                "matiere": {
+                                                    "properties": {
+                                                        "nom": {
+                                                            "type": "string"
+                                                        },
+                                                        "coefficient": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Note non trouvée"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Supprimer une note",
+                "description": "Supprime une note existante",
+                "operationId": "65a7e7361c4cfd1ad6a42604a2ae0ed1",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID de la note",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Note supprimée avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Note supprimée avec succès"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Note non trouvée"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/generate": {
+            "post": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Générer un bulletin",
+                "description": "Génère un bulletin pour un élève pour une période donnée",
+                "operationId": "498fdc3c67a188468affea37a0706916",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "periode"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "periode": {
+                                        "type": "string",
+                                        "example": "TRIMESTRE_1",
+                                        "enum": [
+                                            "TRIMESTRE_1",
+                                            "TRIMESTRE_2",
+                                            "TRIMESTRE_3",
+                                            "SEMESTRE_1",
+                                            "SEMESTRE_2"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bulletin généré avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bulletin généré avec succès"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "inscription_id": {
+                                                    "type": "integer"
+                                                },
+                                                "moyenne_eleve": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "moyenne_classe": {
+                                                    "type": "number",
+                                                    "format": "float"
+                                                },
+                                                "rang": {
+                                                    "type": "integer"
+                                                },
+                                                "periode": {
+                                                    "type": "string"
+                                                },
+                                                "decision": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "ADMIS",
+                                                        "REPRISE",
+                                                        "REDOUBLANT"
+                                                    ]
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                },
+                                                "detail_bulletins": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "matiere_id": {
+                                                                "type": "integer"
+                                                            },
+                                                            "moyenne_matiere": {
+                                                                "type": "number"
+                                                            },
+                                                            "rang_matiere": {
+                                                                "type": "integer"
+                                                            },
+                                                            "appreciation": {
+                                                                "type": "string"
+                                                            },
+                                                            "matiere": {
+                                                                "properties": {
+                                                                    "nom": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "coefficient": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/generate-class": {
+            "post": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Générer les bulletins d'une classe",
+                "description": "Génère les bulletins pour tous les élèves d'une classe",
+                "operationId": "eb4951b509f17bb3dc6af57510ef1d78",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "classe_id",
+                                    "periode",
+                                    "annee_scolaire_id"
+                                ],
+                                "properties": {
+                                    "classe_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "periode": {
+                                        "type": "string",
+                                        "example": "TRIMESTRE_1"
+                                    },
+                                    "annee_scolaire_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bulletins générés",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "15 bulletins générés avec succès"
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "properties": {
+                                                    "success": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "bulletin": {
+                                                        "type": "object"
+                                                    },
+                                                    "error": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/eleve/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Bulletins d'un élève",
+                "description": "Retourne tous les bulletins d'un élève",
+                "operationId": "dd0dcb24dc2bea0493ea403c0e6b5895",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "description": "ID de l'inscription",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "periode": {
+                                                        "type": "string"
+                                                    },
+                                                    "moyenne_eleve": {
+                                                        "type": "number"
+                                                    },
+                                                    "decision": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Inscription non trouvée"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/{id}": {
+            "get": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Afficher un bulletin",
+                "description": "Retourne les détails complets d'un bulletin",
+                "operationId": "7d634e9dc9e8d78f3afabfdb64df6501",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID du bulletin",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "moyenne_eleve": {
+                                                    "type": "number"
+                                                },
+                                                "moyenne_classe": {
+                                                    "type": "number"
+                                                },
+                                                "rang": {
+                                                    "type": "integer"
+                                                },
+                                                "decision": {
+                                                    "type": "string"
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                },
+                                                "inscription": {
+                                                    "properties": {
+                                                        "eleve": {
+                                                            "properties": {
+                                                                "nom": {
+                                                                    "type": "string"
+                                                                },
+                                                                "prenom": {
+                                                                    "type": "string"
+                                                                },
+                                                                "matricule": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "classe": {
+                                                            "properties": {
+                                                                "nom_classe": {
+                                                                    "type": "string"
+                                                                },
+                                                                "niveau": {
+                                                                    "properties": {
+                                                                        "nom_niveau": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "cycle": {
+                                                                            "type": "string"
+                                                                        }
+                                                                    },
+                                                                    "type": "object"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "detail_bulletins": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "moyenne_matiere": {
+                                                                "type": "number"
+                                                            },
+                                                            "rang_matiere": {
+                                                                "type": "integer"
+                                                            },
+                                                            "appreciation": {
+                                                                "type": "string"
+                                                            },
+                                                            "matiere": {
+                                                                "properties": {
+                                                                    "nom": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "coefficient": {
+                                                                        "type": "integer"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Bulletin non trouvé"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Supprimer un bulletin",
+                "description": "Supprime un bulletin et ses détails",
+                "operationId": "9bd3b6c843d3265aea6294157cd500bf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID du bulletin",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bulletin supprimé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bulletin supprimé avec succès"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Bulletin non trouvé"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/{id}/appreciation": {
+            "put": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Modifier l'appréciation",
+                "description": "Met à jour l'appréciation d'un bulletin",
+                "operationId": "17539559806b7754b8069aa9a8e89f50",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID du bulletin",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "appreciation"
+                                ],
+                                "properties": {
+                                    "appreciation": {
+                                        "type": "string",
+                                        "example": "Félicitations ! Excellent travail ce trimestre.",
+                                        "maxLength": 255
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Appréciation mise à jour",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Appréciation mise à jour avec succès"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "appreciation": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Bulletin non trouvé"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/class": {
+            "get": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Bulletins par classe",
+                "description": "Retourne la liste des bulletins d'une classe pour une période",
+                "operationId": "33d5c1e4139063b25cbd24f2a2ed554c",
+                "parameters": [
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "description": "ID de la classe",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "periode",
+                        "in": "query",
+                        "description": "Période",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "TRIMESTRE_1"
+                        }
+                    },
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "description": "ID de l'année scolaire",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "moyenne_eleve": {
+                                                        "type": "number"
+                                                    },
+                                                    "rang": {
+                                                        "type": "integer"
+                                                    },
+                                                    "decision": {
+                                                        "type": "string"
+                                                    },
+                                                    "inscription": {
+                                                        "properties": {
+                                                            "eleve": {
+                                                                "properties": {
+                                                                    "nom": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "prenom": {
+                                                                        "type": "string"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            }
+        },
+        "/api/bulletins/{id}/pdf": {
+            "get": {
+                "tags": [
+                    "Bulletins"
+                ],
+                "summary": "Exporter en PDF",
+                "description": "Génère et télécharge le bulletin au format PDF",
+                "operationId": "c932467e597c24f01c99ef57b69cc0ca",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID du bulletin",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Fichier PDF",
+                        "content": {
+                            "application/pdf": {}
+                        }
+                    },
+                    "404": {
+                        "description": "Bulletin non trouvé"
+                    }
+                }
+            }
         }
     },
     "tags": [
@@ -781,6 +1942,14 @@
         {
             "name": "Inscription",
             "description": "Inscription"
+        },
+        {
+            "name": "Notes",
+            "description": "Notes"
+        },
+        {
+            "name": "Bulletins",
+            "description": "Bulletins"
         }
     ]
 }

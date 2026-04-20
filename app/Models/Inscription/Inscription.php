@@ -10,35 +10,57 @@ class Inscription extends Model
     protected $table = 'inscriptions';
 
     protected $fillable = [
-        'annee_scolaire_id',
-        'classe_id',
+        'id_eleve',
+        'id_classe',
+        'id_annee_scolaire',
         'montant_total',
         'montant_net',
         'parascolaire',
         'cantine',
         'date_inscription',
         'utilisateur_id',
-        'eleve_id'
     ];
 
     public function AnneeScolaire()
     {
-        return $this->belongsTo(AnneeScolaire::class);
+        return $this->belongsTo(AnneeScolaire::class, 'id_annee_scolaire', 'id');
     }
 
     public function Classe()
     {
-        return $this->belongsTo(Classe::class);
+        return $this->belongsTo(Classe::class, 'id_classe', 'id');
     }
 
      public function Eleve()
     {
-        return $this->belongsTo(Eleve::class);
+        return $this->belongsTo(Eleve::class, 'id_eleve', 'id');
     }
 
     public function Utilisateur(){
-        return $this->belongsTo(Utilisateur::class);
+        return $this->belongsTo(Utilisateur::class, 'utilisateur_id', 'id');
     }
 
+    public function paiements()
+    {
+        return $this->hasMany(Paiement::class, 'inscription_id');
+    }
+
+
+    public function getResteAPayerAttribute()
+    {
+        $totalPaye = $this->paiements()->sum('montant') ?? 0;
+        return $this->montant_net - $totalPaye;
+    }
+
+
+    public function getEstPayeAttribute()
+    {
+        return $this->reste_a_payer <= 0;
+    }
+
+    public function fraisAppliques()
+    {
+        return $this->hasMany(FraisApplique::class, 'id_inscription');
+    }
 
 }

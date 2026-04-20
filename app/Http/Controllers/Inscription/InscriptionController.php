@@ -27,8 +27,8 @@ class InscriptionController extends Controller
     public function store(InscriptionRequest $request): JsonResponse
     {
         try {
-            $fixedFields = $request->getFixedFields();   // Récupérer les champs fixes (eleve, classe, options)
-            $inscriptionFields = $request->getInscriptionFields();  //Recuperer les champs
+            $fixedFields = $request->getFixedFields();
+            $inscriptionFields = $request->getInscriptionFields();
             $dynamicFields = $request->getDynamicFields();
 
             $result = $this->inscriptionService->processInscription(
@@ -45,16 +45,16 @@ class InscriptionController extends Controller
 
             //Erreurs spécifiques classe
             if (str_contains($errorMessage, 'Classe non trouvée')) {
-                $errorMessage = 'La classe sélectionnée n\'existe pas. Vérifiez que le classe_id est correct.';
+                $errorMessage = 'La classe sélectionnée n\'existe pas.';
                 $statusCode = 404;
             //
             //Niveau selectionne est incorrect
             } elseif (str_contains($errorMessage, 'niveau')) {
-                $errorMessage = 'Le niveau sélectionné n\'existe pas. Vérifiez que le niveau_id est correct.';
+                $errorMessage = 'Le niveau sélectionné n\'existe pas.';
                 $statusCode = 404;
             //verification erreur annne
             } elseif (str_contains($errorMessage, 'année scolaire')) {
-                $errorMessage = 'Aucune année scolaire active. Contactez l\'administrateur.';
+                $errorMessage = 'Aucune année scolaire active.';
                 $statusCode = 404;
 
             //Verification doublons eleve

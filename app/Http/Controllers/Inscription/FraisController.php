@@ -3,44 +3,107 @@
 namespace App\Http\Controllers\Inscription;
 
 use App\Http\Controllers\Controller;
-use App\Services\Inscription\FraisService;
+use App\Models\Inscription\TypeFrais;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Validator;
 
 class FraisController extends Controller
 {
-    /// Injecter le service FraisService pour gérer la logique métier liée aux frais d'inscription
-    protected $fraisService;
-
-
-    ///     * Constructeur pour injecter le service FraisService
-
-
-    public function __construct(FraisService $fraisService)
+    public function calcul(Request $request)
     {
-        $this->fraisService = $fraisService;
-    }
-
-    /// Endpoint pour calculer le montant total des frais d'inscription en fonction du cycle et des options sélectionnées
-    public function calcul(Request $request): JsonResponse
-    {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'cycle' => 'required|string|in:primaire,college,lycee',
-            'parascolaire' => 'boolean',
-            'cantine' => 'boolean',
+            'parascolaire' => 'sometimes|boolean',
+            'cantine' => 'sometimes|boolean',
+            'sports' => 'sometimes|boolean'
         ]);
 
-        $result = $this->fraisService->calculerMontantTotal(
-            $request->cycle,
-            [
-                'parascolaire' => $request->has('parascolaire'),
-                'cantine' => $request->has('cantine'),
-            ]
-        );
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $total = 0;
+        $details = [];
+
+        // Frais d'inscription (obligatoire)
+        $inscription = TypeFrais::where('libelle', 'Inscription')->first();
+        if ($inscription) {
+            $total += $inscription->montant;
+            $details[] = [
+                'libelle' => $inscription->libelle,
+                'montant' => $inscription->montant,
+                'type' => 'obligatoire'
+            ];
+        }
+
+        // Scolarité selon le cycle
+        $scolarite = TypeFrais::where('libelle', 'like', 'Scolarité%')
+            ->where('libelle', 'like', '%' . ucfirst($request->cycle) . '%')
+            ->first();
+        
+        if ($scolarite) {
+            $total += $scolarite->montant;
+            $details[] = [
+                'libelle' => $scolarite->libelle,
+                'montant' => $scolarite->montant,
+                'type' => 'obligatoire'
+            ];
+        }
+
+        // Frais technologiques
+        $techno = TypeFrais::where('libelle', 'Frais technologiques')->first();
+        if ($techno) {
+            $total += $techno->montant;
+            $details[] = [
+                'libelle' => $techno->libelle,
+                'montant' => $techno->montant,
+                'type' => 'obligatoire'
+            ];
+        }
+
+        // Options
+        if ($request->parascolaire) {
+            $para = TypeFrais::where('libelle', 'Parascolaire')->first();
+            if ($para) {
+                $total += $para->montant;
+                $details[] = [
+                    'libelle' => $para->libelle,
+                    'montant' => $para->montant,
+                    'type' => 'optionnel'
+                ];
+            }
+        }
+
+        if ($request->cantine) {
+            $cantine = TypeFrais::where('libelle', 'Cantine')->first();
+            if ($cantine) {
+                $total += $cantine->montant;
+                $details[] = [
+                    'libelle' => $cantine->libelle,
+                    'montant' => $cantine->montant,
+                    'type' => 'optionnel'
+                ];
+            }
+        }
+
+        if ($request->sports) {
+            $sports = TypeFrais::where('libelle', 'Sports')->first();
+            if ($sports) {
+                $total += $sports->montant;
+                $details[] = [
+                    'libelle' => $sports->libelle,
+                    'montant' => $sports->montant,
+                    'type' => 'optionnel'
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'data' => $result
+            'data' => [
+                'total' => $total,
+                'details' => $details
+            ]
         ]);
     }
 }

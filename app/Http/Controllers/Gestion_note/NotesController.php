@@ -4,12 +4,10 @@ namespace App\Http\Controllers\Gestion_note;
 
 use App\Http\Controllers\Controller;
 use App\Models\Gestion_note\Notes;
-use App\Models\Gestion_note\Matieres;
 use App\Models\Inscription\Inscription;
 use App\Services\BulletinService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 
 class NotesController extends Controller
 {
@@ -20,9 +18,6 @@ class NotesController extends Controller
         $this->bulletinService = $bulletinService;
     }
 
-    /**
-     * Afficher toutes les notes d'une inscription
-     */
     public function index(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -48,9 +43,6 @@ class NotesController extends Controller
         ]);
     }
 
-    /**
-     * Ajouter une note
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -69,8 +61,6 @@ class NotesController extends Controller
 
         try {
             $note = Notes::create($request->all());
-            
-            // Récupérer la note avec sa relation matière
             $noteWithMatiere = Notes::with('matiere')->find($note->id);
 
             return response()->json([
@@ -88,9 +78,6 @@ class NotesController extends Controller
         }
     }
 
-    /**
-     * Afficher une note
-     */
     public function show($id)
     {
         $note = Notes::with('matiere')->find($id);
@@ -108,9 +95,6 @@ class NotesController extends Controller
         ]);
     }
 
-    /**
-     * Modifier une note
-     */
     public function update(Request $request, $id)
     {
         $note = Notes::find($id);
@@ -133,10 +117,7 @@ class NotesController extends Controller
         }
 
         try {
-            // Mettre à jour directement
             Notes::where('id', $id)->update($request->only(['valeur', 'date', 'appreciation']));
-            
-            // Récupérer la note mise à jour avec la relation
             $updatedNote = Notes::with('matiere')->find($id);
 
             return response()->json([
@@ -154,9 +135,6 @@ class NotesController extends Controller
         }
     }
 
-    /**
-     * Supprimer une note
-     */
     public function destroy($id)
     {
         $note = Notes::find($id);
@@ -183,5 +161,28 @@ class NotesController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getMoyenne($inscriptionId, $periode)
+    {
+        $inscription = Inscription::find($inscriptionId);
+        
+        if (!$inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inscription non trouvée'
+            ], 404);
+        }
+
+        $moyenne = $this->bulletinService->calculerMoyenneGenerale($inscriptionId, $periode);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'inscription_id' => $inscriptionId,
+                'periode' => $periode,
+                'moyenne_generale' => $moyenne
+            ]
+        ]);
     }
 }

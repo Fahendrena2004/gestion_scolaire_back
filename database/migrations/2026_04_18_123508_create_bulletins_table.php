@@ -17,21 +17,13 @@ return new class extends Migration
             $table->decimal('moyenne_eleve', 10, 2);
             $table->decimal('moyenne_classe', 10, 2);
             $table->integer('rang');
+            $table->string('decision', 255);
+            $table->string('appreciation', 255);
 
-            $table->foreignId('id_annee_scolaire')
-                    ->constrained('annee_scolaires')
-                    ->onDelete('cascade')
-                    ->onUpdate('cascade');
-
-            $table->foreignId('id_eleve')
-                    ->constrained('eleves')
-                    ->onDelete('cascade')
-                    ->onUpdate('cascade');
-
-            $table->foreignId('id_classe')
-                    ->constrained('classes')
-                    ->onDelete('cascade')
-                    ->onUpdate('cascade');
+            $table->foreignId('inscription_id')
+            ->constrained('inscriptions')
+            ->onUpdate('cascade')
+            ->onDelete('cascade');
 
             $table->timestamps();
         });

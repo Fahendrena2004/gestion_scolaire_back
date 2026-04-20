@@ -2,36 +2,31 @@
 
 namespace App\Models\Gestion_note;
 
-use App\Models\Inscription\AnneeScolaire;
-use App\Models\Gestion_note\Matieres;
-use App\Models\Inscription\Eleve;
-
+use App\Models\Inscription\Inscription;
 use Illuminate\Database\Eloquent\Model;
 
 class Notes extends Model
 {
-    //
     protected $table = 'notes';
 
     protected $fillable = [
-        'eleve_id',
+        'inscription_id',
         'matiere_id',
-        'annee_scolaire_id',
         'valeur',
         'periode',
         'date',
         'type',
+        'appreciation',
     ];
 
-    public function AnneeScolaire(){
-        return $this->belongsTo(AnneeScolaire::class, );
+    
+    public function matiere()
+    {
+        return $this->belongsTo(Matieres::class, 'matiere_id');
     }
 
-    public function Matiere(){
-        return $this->belongsTo(Matieres::class);
-    }
-
-    public function Eleve(){
-        return $this->belongsTo(Eleve::class);
+    public function inscription()
+    {
+        return $this->belongsTo(Inscription::class, 'inscription_id');
     }
 }

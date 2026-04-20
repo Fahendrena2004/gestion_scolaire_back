@@ -2,35 +2,30 @@
 
 namespace App\Models\Gestion_note;
 
-use App\Models\Inscription\AnneeScolaire;
-use App\Models\Inscription\Classe;
-use App\Models\Inscription\Eleve;
+use App\Models\Inscription\Inscription;
 use Illuminate\Database\Eloquent\Model;
 
 class Bulletin extends Model
 {
-    //
     protected $table = 'bulletins';
 
     protected $fillable = [
-        'eleve_id',
-        'annee_scolaire_id',
-        'classe_id',
+        'inscription_id',
         'moyenne_eleve',
         'moyenne_classe',
         'rang',
         'periode',
+        'decision',
+        'appreciation',
     ];
 
-    public function AnneeScolaire(){
-        return $this->belongsTo(AnneeScolaire::class);
+    public function inscription()
+    {
+        return $this->belongsTo(Inscription::class, 'inscription_id');
     }
-
-    public function Eleve(){
-        return $this->belongsTo(Eleve::class);
-    }
-
-    public function classe(){
-        return $this->belongsTo(Classe::class);
+    
+    public function detailBulletins()
+    {
+        return $this->hasMany(DetailBulletins::class, 'bulletin_id');
     }
 }

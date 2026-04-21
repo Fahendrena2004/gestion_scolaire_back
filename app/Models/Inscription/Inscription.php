@@ -63,4 +63,9 @@ class Inscription extends Model
         return $this->hasMany(FraisApplique::class, 'id_inscription');
     }
 
+    public function echeances()
+    {
+    return $this->hasMany(Echeance::class, 'inscription_id');
+    }
+
 }

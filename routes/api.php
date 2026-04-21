@@ -5,11 +5,15 @@ use App\Http\Controllers\Inscription\CycleController;
 use App\Http\Controllers\Inscription\FraisController;
 use App\Http\Controllers\Inscription\InscriptionController;
 use App\Http\Controllers\Inscription\NiveauController;
+use App\Http\Controllers\Paiements\CantineController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Gestion_note\NotesController;
 use App\Http\Controllers\Gestion_note\BulletinController;
+use App\Http\Controllers\Paiements\ScolariteController;
+use App\Http\Controllers\Paiements\AutresFraisController;
+use App\Http\Controllers\Paiements\PaiementController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -75,4 +79,48 @@ Route::prefix('bulletins')->group(function () {
     Route::get('/{id}/pdf', [BulletinController::class, 'exportPDF']);
 });
 
+Route::prefix('eleve')->group(function () {
+    //
 
+});
+
+Route::prefix('cantine')->group(function () {
+
+    Route::get('/filtres', [PaiementController::class, 'getFiltres']);
+    Route::get('/eleves', [PaiementController::class, 'filtrerEleves']);
+
+       // Cantinier
+    Route::post('/presence', [CantineController::class, 'marquerPresence']);
+
+     // Parent / Caissier
+    Route::get('/mois-disponibles/{inscriptionId}', [CantineController::class, 'getMoisDisponibles']);
+    Route::get('/jours/{inscriptionId}', [CantineController::class, 'getJours']);
+    Route::post('/payer', [CantineController::class, 'payerJours']);
+    Route::post('/presence', [CantineController::class, 'payerJours']);
+});
+
+Route::prefix('autres-frais')->group(function () {
+
+    // 1. Récupérer tous les autres frais à payer
+    Route::get('/{inscriptionId}', [AutresFraisController::class, 'getFraisAPayer']);
+
+    // 2. Payer des frais sélectionnés
+    Route::post('/payer', [AutresFraisController::class, 'marquerPresence']);
+});
+
+
+///frais de scolarite////////////////
+Route::prefix('scolarite')->group(function () {
+
+    // Récupérer les mois à payer
+    Route::get('/mois/{inscriptionId}', [ScolariteController::class, 'getMoisAPayer']);
+
+    // Payer des mois sélectionnés
+    Route::post('/payer', [ScolariteController::class, 'payerMois']);
+
+    // Payer tous les mois restants (⚠️ l'ID est dans l'URL)
+    Route::post('/payer-tout/{inscriptionId}', [ScolariteController::class, 'payerTout']);
+
+    // Historique des paiements
+    Route::get('/historique/{inscriptionId}', [ScolariteController::class, 'getHistorique']);
+});

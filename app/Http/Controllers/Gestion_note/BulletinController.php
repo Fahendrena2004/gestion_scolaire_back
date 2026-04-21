@@ -51,148 +51,6 @@ class BulletinController extends Controller
         }
     }
 
-    public function updateAppreciation(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'appreciation' => 'required|string|max:255'
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-        
-        $bulletin = Bulletin::find($id);
-        
-        if (!$bulletin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bulletin non trouvé'
-            ], 404);
-        }
-        
-        try {
-            // Mettre à jour directement
-            Bulletin::where('id', $id)->update(['appreciation' => $request->appreciation]);
-            
-            $updatedBulletin = Bulletin::find($id);
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Appréciation mise à jour avec succès',
-                'data' => $updatedBulletin
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la mise à jour',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function destroy($id)
-    {
-        $bulletin = Bulletin::find($id);
-        
-        if (!$bulletin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bulletin non trouvé'
-            ], 404);
-        }
-        
-        DB::beginTransaction();
-        try {
-            DetailBulletins::where('bulletin_id', $id)->delete();
-            Bulletin::where('id', $id)->delete();
-            
-            DB::commit();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Bulletin supprimé avec succès'
-            ]);
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la suppression',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function show($id)
-    {
-        $bulletin = Bulletin::with([
-            'inscription.eleve',
-            'inscription.classe.niveau',
-            'detailBulletins.matiere'
-        ])->find($id);
-        
-        if (!$bulletin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bulletin non trouvé'
-            ], 404);
-        }
-        
-        return response()->json([
-            'success' => true,
-            'data' => $bulletin
-        ]);
-    }
-
-    public function getBulletinsByEleve($inscriptionId)
-    {
-        $inscription = Inscription::find($inscriptionId);
-        
-        if (!$inscription) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Inscription non trouvée'
-            ], 404);
-        }
-        
-        $bulletins = Bulletin::where('inscription_id', $inscriptionId)
-            ->with(['detailBulletins.matiere', 'inscription.eleve', 'inscription.classe'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $bulletins
-        ]);
-    }
-
-    public function getBulletinsByClass(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'classe_id' => 'required|exists:classes,id',
-            'periode' => 'required|string',
-            'annee_scolaire_id' => 'required|exists:annee_scolaires,id'
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-        
-        $bulletins = Bulletin::whereHas('inscription', function($query) use ($request) {
-                $query->where('id_classe', $request->classe_id)
-                      ->where('id_annee_scolaire', $request->annee_scolaire_id);
-            })
-            ->where('periode', $request->periode)
-            ->with(['inscription.eleve', 'detailBulletins.matiere'])
-            ->orderBy('rang', 'asc')
-            ->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $bulletins
-        ]);
-    }
-
     public function generateForClass(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -226,6 +84,147 @@ class BulletinController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la génération des bulletins',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getByEleve($inscriptionId)
+    {
+        $inscription = Inscription::find($inscriptionId);
+        
+        if (!$inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inscription non trouvée'
+            ], 404);
+        }
+        
+        $bulletins = Bulletin::where('inscription_id', $inscriptionId)
+            ->with(['detailBulletins.matiere', 'inscription.eleve', 'inscription.classe'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $bulletins
+        ]);
+    }
+
+    public function show($id)
+    {
+        $bulletin = Bulletin::with([
+            'inscription.eleve',
+            'inscription.classe.niveau',
+            'detailBulletins.matiere'
+        ])->find($id);
+        
+        if (!$bulletin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulletin non trouvé'
+            ], 404);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => $bulletin
+        ]);
+    }
+
+    public function updateAppreciation(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'appreciation' => 'required|string|max:255'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        
+        $bulletin = Bulletin::find($id);
+        
+        if (!$bulletin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulletin non trouvé'
+            ], 404);
+        }
+        
+        try {
+            Bulletin::where('id', $id)->update(['appreciation' => $request->appreciation]);
+            
+            $updatedBulletin = Bulletin::find($id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Appréciation mise à jour avec succès',
+                'data' => $updatedBulletin
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getByClass(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'classe_id' => 'required|exists:classes,id',
+            'periode' => 'required|string',
+            'annee_scolaire_id' => 'required|exists:annee_scolaires,id'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        
+        $bulletins = Bulletin::whereHas('inscription', function($query) use ($request) {
+                $query->where('id_classe', $request->classe_id)
+                      ->where('id_annee_scolaire', $request->annee_scolaire_id);
+            })
+            ->where('periode', $request->periode)
+            ->with(['inscription.eleve', 'detailBulletins.matiere'])
+            ->orderBy('rang', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'data' => $bulletins
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $bulletin = Bulletin::find($id);
+        
+        if (!$bulletin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulletin non trouvé'
+            ], 404);
+        }
+        
+        DB::beginTransaction();
+        try {
+            DetailBulletins::where('bulletin_id', $id)->delete();
+            Bulletin::where('id', $id)->delete();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Bulletin supprimé avec succès'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression',
                 'error' => $e->getMessage()
             ], 500);
         }

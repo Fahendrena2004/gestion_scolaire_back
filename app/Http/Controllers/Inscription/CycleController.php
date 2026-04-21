@@ -3,22 +3,13 @@
 namespace App\Http\Controllers\Inscription;
 
 use App\Http\Controllers\Controller;
-use App\Services\Inscription\ClasseService;
-use Illuminate\Http\JsonResponse;
 
 class CycleController extends Controller
 {
-    protected $classeService;
-
-    public function __construct(ClasseService $classeService)
+    public function index()
     {
-        $this->classeService = $classeService;
-   }
-   // Endpoint pour récupérer les cycles disponibles, en vérifiant que des cycles sont définis dans le système
-    public function index(): JsonResponse
-    {
-        $cycles = $this->classeService->getCycles();
-
+        $cycles = ['primaire', 'college', 'lycee'];
+        
         return response()->json([
             'success' => true,
             'data' => $cycles

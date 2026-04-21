@@ -5,7 +5,6 @@ namespace App\Services\Inscription;
 use App\Models\Inscription\Classe;
 use App\Models\Inscription\Niveau;
 use App\Models\Inscription\AnneeScolaire;
-use Illuminate\Support\Facades\Cache;
 
 class ClasseService
 {

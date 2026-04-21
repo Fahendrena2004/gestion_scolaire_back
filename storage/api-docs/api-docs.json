@@ -2138,13 +2138,906 @@
                 ]
             }
         },
-        "/api/teste": {
+        "/api/cantine/filtres": {
+            "get": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Recuperer les filtres de paiement cantine",
+                "description": "Retourne la liste des classes et niveaux disponibles pour filtrer les eleves.",
+                "operationId": "88a0d4eb7e987c3a70ea547409ed9ba3",
+                "responses": {
+                    "200": {
+                        "description": "Filtres recuperes avec succes"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/cantine/eleves": {
+            "get": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Filtrer les eleves pour le paiement",
+                "description": "Filtre les inscriptions de l annee scolaire en cours par classe, niveau, nom ou matricule.",
+                "operationId": "09f23867a1969c90beed01c35524e29b",
+                "parameters": [
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    },
+                    {
+                        "name": "niveau_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 6
+                        }
+                    },
+                    {
+                        "name": "nom",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Rakoto"
+                        }
+                    },
+                    {
+                        "name": "matricule",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "REG-2025-0001"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resultats de filtrage"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/cantine/presence": {
+            "post": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Marquer la presence cantine",
+                "operationId": "ce3b4feefb23251e593c26dbab3754ca",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "date",
+                                    "est_present"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-04-21"
+                                    },
+                                    "est_present": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Presence enregistree"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/cantine/mois-disponibles/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Lister les mois cantine disponibles",
+                "operationId": "14155d0e2983286a6bee31b348f4bc60",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mois disponibles recuperes"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/cantine/jours/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Recuperer les jours d un mois de cantine",
+                "description": "Les parametres mois et annee sont optionnels. Si absents, le premier mois disponible est utilise.",
+                "operationId": "d3f5299c93f1674b03db35d6800f9fd2",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "mois",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 9
+                        }
+                    },
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2025
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Jours du mois recuperes"
+                    },
+                    "400": {
+                        "description": "Parametres invalides"
+                    },
+                    "404": {
+                        "description": "Aucune donnee trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/cantine/payer": {
+            "post": {
+                "tags": [
+                    "Paiements - Cantine"
+                ],
+                "summary": "Payer des jours de cantine",
+                "operationId": "891af852d884b09e6046c46fa72bc58d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "dates"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "dates": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "date",
+                                            "example": "2026-04-21"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Paiement effectue"
+                    },
+                    "422": {
+                        "description": "Erreur de validation ou de paiement"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/autres-frais/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Paiements - Autres Frais"
+                ],
+                "summary": "Recuperer les autres frais a payer",
+                "description": "Retourne les echeances impayees hors cantine et hors scolarite.",
+                "operationId": "066a4ea5b16d75ca655e1fbe4048564e",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Frais recuperes"
+                    },
+                    "404": {
+                        "description": "Inscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/autres-frais/payer": {
+            "post": {
+                "tags": [
+                    "Paiements - Autres Frais"
+                ],
+                "summary": "Payer des frais selectionnes",
+                "operationId": "33738241c56fab6d9620de10070351a0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "echeances_ids"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "echeances_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "example": 25
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Paiement effectue"
+                    },
+                    "422": {
+                        "description": "Aucun frais valide selectionne"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/scolarite/mois/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Paiements - Scolarite"
+                ],
+                "summary": "Recuperer les mois de scolarite a payer",
+                "operationId": "f24007c1db7e5e222443c14ba7e99092",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Mois impayes recuperes"
+                    },
+                    "404": {
+                        "description": "Inscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/scolarite/payer": {
+            "post": {
+                "tags": [
+                    "Paiements - Scolarite"
+                ],
+                "summary": "Payer des mois de scolarite selectionnes",
+                "operationId": "3d1eceb0590c69e9f08f393f0f6a18e2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "inscription_id",
+                                    "echeances_ids"
+                                ],
+                                "properties": {
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "echeances_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "example": 14
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Paiement enregistre"
+                    },
+                    "422": {
+                        "description": "Aucune echeance valide selectionnee"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/scolarite/payer-tout/{inscriptionId}": {
+            "post": {
+                "tags": [
+                    "Paiements - Scolarite"
+                ],
+                "summary": "Payer toutes les echeances de scolarite restantes",
+                "operationId": "65125e1865eb083d39681d19dd0c948b",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paiement total effectue"
+                    },
+                    "422": {
+                        "description": "Aucune echeance impayee"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/scolarite/historique/{inscriptionId}": {
+            "get": {
+                "tags": [
+                    "Paiements - Scolarite"
+                ],
+                "summary": "Consulter l historique des paiements de scolarite",
+                "operationId": "15b139fb55e9dd1cc9dec962db48a958",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Historique recupere"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reinscriptions/rechercher": {
+            "get": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Rechercher un eleve par matricule pour la reinscription",
+                "description": "Retourne les informations de l eleve, sa derniere inscription, une classe superieure proposee et le statut de reinscription pour l annee scolaire demandee.",
+                "operationId": "627a0ed43b448e493b394e05e0307465",
+                "parameters": [
+                    {
+                        "name": "matricule",
+                        "in": "query",
+                        "description": "Matricule de l eleve",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "REG-2025-0001"
+                        }
+                    },
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "description": "ID de l annee scolaire cible",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Eleve trouve",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "eleve": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "matricule": {
+                                                    "type": "string",
+                                                    "example": "REG-2025-0001"
+                                                },
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "Rakoto"
+                                                },
+                                                "prenom": {
+                                                    "type": "string",
+                                                    "example": "Fara"
+                                                },
+                                                "sexe": {
+                                                    "type": "string",
+                                                    "example": "F",
+                                                    "nullable": true
+                                                },
+                                                "date_naissance": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2015-03-20",
+                                                    "nullable": true
+                                                },
+                                                "lieu_naissance": {
+                                                    "type": "string",
+                                                    "example": "Antananarivo",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "derniere_inscription": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                },
+                                                "annee_scolaire": {
+                                                    "type": "string",
+                                                    "example": "2025-09-01 - 2026-06-30",
+                                                    "nullable": true
+                                                },
+                                                "classe": {
+                                                    "type": "string",
+                                                    "example": "6eme A",
+                                                    "nullable": true
+                                                },
+                                                "montant_total": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 540000,
+                                                    "nullable": true
+                                                },
+                                                "date_inscription": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-09-03",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        },
+                                        "classe_superieure_proposee": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 14
+                                                },
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "5eme A"
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        },
+                                        "deja_reinscrit": {
+                                            "type": "boolean",
+                                            "example": false
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Eleve non trouve"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reinscriptions": {
+            "get": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Lister les reinscriptions",
+                "operationId": "451b10d3e4a9ce01ebda53c96a5ce650",
+                "parameters": [
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 14
+                        }
+                    },
+                    {
+                        "name": "matricule",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "REG-2025-0001"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste paginee des reinscriptions"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Creer une reinscription",
+                "operationId": "f55f2c720528d1a0381218f0bd25ee27",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "matricule",
+                                    "inscription_id",
+                                    "annee_scolaire_id",
+                                    "classe_id",
+                                    "montant_reinscription",
+                                    "date_reinscription"
+                                ],
+                                "properties": {
+                                    "matricule": {
+                                        "type": "string",
+                                        "example": "REG-2025-0001"
+                                    },
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 8
+                                    },
+                                    "annee_scolaire_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "classe_id": {
+                                        "type": "integer",
+                                        "example": 14
+                                    },
+                                    "montant_reinscription": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 150000
+                                    },
+                                    "parascolaire": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "cantine": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 0,
+                                        "nullable": true
+                                    },
+                                    "date_reinscription": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-09-05"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reinscription enregistree"
+                    },
+                    "409": {
+                        "description": "Eleve deja reinscrit pour cette annee scolaire"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "500": {
+                        "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reinscriptions/{id}": {
+            "get": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Afficher une reinscription",
+                "operationId": "2a37457ee273f50fa8094e56e8ecdbc6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail de la reinscription"
+                    },
+                    "404": {
+                        "description": "Reinscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Supprimer une reinscription",
+                "operationId": "2d85830ebdd256c51bd599ff849a17b4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reinscription supprimee"
+                    },
+                    "404": {
+                        "description": "Reinscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reinscriptions/{id}/paiement": {
+            "put": {
+                "tags": [
+                    "Reinscription"
+                ],
+                "summary": "Mettre a jour le statut de paiement d une reinscription",
+                "operationId": "582d7b8a3613667e8a77b08b04e56ac5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statut de paiement mis a jour"
+                    },
+                    "404": {
+                        "description": "Reinscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/test": {
             "get": {
                 "tags": [
                     "System"
                 ],
                 "summary": "Verifier que l API fonctionne",
-                "operationId": "1724187b93fbf880ceea2cc5938f0b8f",
+                "operationId": "0c1da20c83beeff473d703396b859674",
                 "responses": {
                     "200": {
                         "description": "API disponible",
@@ -3644,6 +4537,22 @@
         {
             "name": "Bulletins",
             "description": "Bulletins"
+        },
+        {
+            "name": "Paiements - Cantine",
+            "description": "Paiements - Cantine"
+        },
+        {
+            "name": "Paiements - Autres Frais",
+            "description": "Paiements - Autres Frais"
+        },
+        {
+            "name": "Paiements - Scolarite",
+            "description": "Paiements - Scolarite"
+        },
+        {
+            "name": "Reinscription",
+            "description": "Reinscription"
         },
         {
             "name": "System",

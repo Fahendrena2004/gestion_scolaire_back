@@ -7,7 +7,7 @@ use OpenApi\Attributes as OA;
 class RouteCoverageSwagger
 {
     #[OA\Get(
-        path: '/api/teste',
+        path: '/api/test',
         tags: ['System'],
         summary: 'Verifier que l API fonctionne',
         responses: [

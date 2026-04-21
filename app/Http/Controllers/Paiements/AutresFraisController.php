@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class AutresFraisController extends Controller
 {
+    public function payer(Request $request)
+    {
+        return $this->payerFrais($request);
+    }
+
     /**
      * 1. Récupérer tous les autres frais à payer (Parascolaire, Inscription, Frais techno)
      * GET /api/autres-frais/{inscriptionId}

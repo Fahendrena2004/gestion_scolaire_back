@@ -11,26 +11,29 @@ class ClasseController extends Controller
 {
     public function index()
     {
+        $classes = Classe::with(['niveau','anneeScolaire'])->get();
         return response()->json([
             'success'=>true,
-            'data'=>Classe::with(['niveau','anneeScolaire'])->get()
+            'data'=>$classes
         ]);
     }
 
     public function getByNiveau($niveauId)
     {
+        $classes = Classe::where('niveau_id',$niveauId)->with('anneeScolaire')->get();  
         return response()->json([
             'success'=>true,
-            'data'=>Classe::where('niveau_id',$niveauId)->with('anneeScolaire')->get()
+            'data'=>$classes
         ]);
     }
 
     public function getByCycle($cycle)
     {
+        $classes = Classe::whereHas('niveau',fn($q)=>$q->where('cycle',$cycle))
+            ->with(['niveau','anneeScolaire'])->get();
         return response()->json([
             'success'=>true,
-            'data'=>Classe::whereHas('niveau',fn($q)=>$q->where('cycle',$cycle))
-                ->with(['niveau','anneeScolaire'])->get()
+            'data'=>$classes
         ]);
     }
 
@@ -60,9 +63,10 @@ class ClasseController extends Controller
 
     public function show($id)
     {
+        $classes = Classe::with(['niveau','anneeScolaire'])->findOrFail($id);
         return response()->json([
             'success'=>true,
-            'data'=>Classe::with(['niveau','anneeScolaire'])->findOrFail($id)
+            'data'=>$classes
         ]);
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Inscription\ReinscriptionController;
 
 // SETUP
 use App\Http\Controllers\Setup\InstallController;
@@ -36,7 +37,7 @@ use App\Http\Controllers\Gestion_note\DetailBulletinController;
 use App\Http\Controllers\Paiements\CantineController;
 use App\Http\Controllers\Paiements\ScolariteController;
 use App\Http\Controllers\Paiements\AutresFraisController;
-use App\Http\Controllers\Paiements\FilatrationPaiement;
+use App\Http\Controllers\Paiements\FiltrationPaiement;
 
 /*
 |--------------------------------------------------------------------------
@@ -175,8 +176,8 @@ Route::middleware('auth:sanctum')->group(function () {
     */
 
     Route::prefix('cantine')->group(function () {
-        Route::get('/filtres', [FilatrationPaiement::class, 'getFiltres']);
-        Route::get('/eleves', [FilatrationPaiement::class, 'filtrerEleves']);
+        Route::get('/filtres', [FiltrationPaiement::class, 'getFiltres']);
+        Route::get('/eleves', [FiltrationPaiement::class, 'filtrerEleves']);
         Route::post('/presence', [CantineController::class, 'marquerPresence']);
         Route::get('/mois-disponibles/{inscriptionId}', [CantineController::class, 'getMoisDisponibles']);
         Route::get('/jours/{inscriptionId}', [CantineController::class, 'getJours']);
@@ -209,4 +210,21 @@ Route::prefix('setup')->group(function () {
     Route::post('/frais', [InstallController::class, 'createTypeFrais']);
     Route::get('/status', [InstallController::class, 'getStatus']);
     Route::post('/reset', [InstallController::class, 'reset']);
+});
+
+
+// ROUTES POUR LA RÉINSCRIPTION
+// ==============================================
+Route::prefix('reinscriptions')->middleware(['auth:sanctum'])->group(function () {
+    // Recherche par MATRICULE (le plus important)
+    Route::get('/rechercher', [ReinscriptionController::class, 'rechercherParMatricule']);
+    
+    // CRUD
+    Route::get('/', [ReinscriptionController::class, 'index']);
+    Route::post('/', [ReinscriptionController::class, 'store']);
+    Route::get('/{id}', [ReinscriptionController::class, 'show']);
+    Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
+    
+    // Actions
+    Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
 });

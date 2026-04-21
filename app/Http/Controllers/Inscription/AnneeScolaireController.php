@@ -11,9 +11,10 @@ class AnneeScolaireController extends Controller
 {
     public function index()
     {
+        $annees_scolaires = AnneeScolaire::latest('date_debut')->get();
         return response()->json([
             'success' => true,
-            'data' => AnneeScolaire::latest('date_debut')->get()
+            'data' => $annees_scolaires
         ]);
     }
 

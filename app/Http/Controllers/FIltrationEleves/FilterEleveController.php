@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\FIltrationEleves;
 
 use App\Models\Inscription\Eleve;
 use App\Models\Inscription\Inscription;
@@ -8,6 +8,7 @@ use App\Models\Inscription\Classe;
 use App\Models\Inscription\AnneeScolaire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
 
 class FilterEleveController extends Controller
 {

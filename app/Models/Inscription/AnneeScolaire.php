@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AnneeScolaire extends Model
 {
-    //
     protected $table='annee_scolaires';
 
     protected $fillable = [
@@ -15,9 +14,13 @@ class AnneeScolaire extends Model
         'statut',
     ];
 
-    
     public function Libelle(){
         return $this->date_debut . ' - ' . $this->date_fin;
+    }
+
+    public function getLibelleAttribute()
+    {
+        return $this->Libelle();
     }
 
 

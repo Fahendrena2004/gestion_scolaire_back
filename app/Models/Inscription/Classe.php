@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 class Classe extends Model
 {
     protected $table="classes";
-    //
     protected $fillable = [
         'nom_classe',
         'niveau_id',
@@ -24,5 +23,10 @@ class Classe extends Model
     public function anneeScolaire()
     {
         return $this->belongsTo(AnneeScolaire::class, 'anneeScolaire_id');
+    }
+
+    public function getNomAttribute()
+    {
+        return $this->nom_classe;
     }
 }

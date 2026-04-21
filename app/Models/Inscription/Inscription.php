@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Utilisateur;
 class Inscription extends Model
 {
-    //
     protected $table = 'inscriptions';
 
     protected $fillable = [
@@ -21,22 +20,22 @@ class Inscription extends Model
         'utilisateur_id',
     ];
 
-    public function AnneeScolaire()
+    public function anneeScolaire()
     {
         return $this->belongsTo(AnneeScolaire::class, 'id_annee_scolaire', 'id');
     }
 
-    public function Classe()
+    public function classe()
     {
         return $this->belongsTo(Classe::class, 'id_classe', 'id');
     }
 
-     public function Eleve()
+     public function eleve()
     {
         return $this->belongsTo(Eleve::class, 'id_eleve', 'id');
     }
 
-    public function Utilisateur(){
+    public function utilisateur(){
         return $this->belongsTo(Utilisateur::class, 'utilisateur_id', 'id');
     }
 

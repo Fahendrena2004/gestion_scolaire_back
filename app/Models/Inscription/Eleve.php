@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Inscription\AutreInformation;
 class Eleve extends Model
 {
-    //
     protected $table = 'eleves';
     protected $fillable = [
         'nom',
@@ -42,6 +41,11 @@ class Eleve extends Model
     public function infosDynamiques()
     {
         return $this->hasMany(AutreInformation::class, 'id_eleve');
+    }
+
+    public function inscriptions()
+    {
+        return $this->hasMany(Inscription::class, 'id_eleve');
     }
 
 }

@@ -8,7 +8,7 @@ use App\Models\Inscription\Classe;
 use App\Models\Inscription\Niveau;
 use Illuminate\Http\Request;
 
-class FilatrationPaiement extends Controller
+class FiltrationPaiement extends Controller
 {
     /**
      * 1. Filtrer les élèves (par classe, niveau, nom, matricule)

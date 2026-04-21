@@ -7,7 +7,7 @@ use App\Models\Gestion_note\DetailBulletins;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class DetailBulletinController extends Controller
+class DetailController extends Controller
 {
     public function getByBulletin($bulletinId)
     {

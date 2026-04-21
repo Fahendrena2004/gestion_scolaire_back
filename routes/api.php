@@ -12,7 +12,7 @@ use App\Http\Controllers\Paiements\CantineController;
 use App\Http\Controllers\Inscription\PaiementController;
 use App\Http\Controllers\Inscription\TypeFraisController;
 use App\Http\Controllers\Gestion_note\MatieresController;
-use App\Http\Controllers\Gestion_note\DetailBulletinController;
+use App\Http\Controllers\Gestion_note\DetailController;
 use App\Http\Controllers\Setup\InstallController;
 
 use Illuminate\Http\Request;
@@ -177,8 +177,8 @@ Route::prefix('scolarite')->group(function () {
     Route::get('/historique/{inscriptionId}', [ScolariteController::class, 'getHistorique']);
 });
 Route::prefix('detail-bulletins')->group(function () {
-    Route::get('/bulletin/{bulletinId}', [DetailBulletinController::class, 'getByBulletin']);
-    Route::put('/{id}', [DetailBulletinController::class, 'update']);
+    Route::get('/bulletin/{bulletinId}', [DetailController::class, 'getByBulletin']);
+    Route::put('/{id}', [DetailController::class, 'update']);
 });
 
 // ==============================================

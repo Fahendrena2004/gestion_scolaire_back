@@ -11,6 +11,7 @@ class InscriptionSwagger {
        // ==============Recuperation CYCLES=====================/
     #[OA\Get(
         path: '/api/inscription/cycles',
+        security: [['bearerAuth' => []]],
         tags: ['Cycles'],
         summary: 'Récupérer tous les cycles',
         description: 'Retourne la liste des cycles disponibles (primaire, college, lycee)',
@@ -37,6 +38,7 @@ class InscriptionSwagger {
     //=======NIVEAUX PAR CYCLE===============//
     #[OA\Get(
         path: '/api/inscription/niveaux/{cycle}',
+        security: [['bearerAuth' => []]],
         tags: ['Cycles'],
         summary: 'Récupérer les niveaux par cycle',
         description: 'Retourne la liste des niveaux pour un cycle donné',
@@ -77,7 +79,8 @@ class InscriptionSwagger {
 
     //===============Recuperation classe par Niveau============//
     #[OA\Get(
-        path: '/api/inscription/classes/{niveauId}',
+        path: '/api/inscription/classes/niveau/{niveauId}',
+        security: [['bearerAuth' => []]],
         tags: ['Cycles'],
         summary: 'Récupérer les classes par niveau',
         description: 'Retourne la liste des classes pour un niveau donné',
@@ -119,6 +122,7 @@ class InscriptionSwagger {
     //=============calcul frais selon classe =============//
     #[OA\Get(
         path: '/api/inscription/frais/calcul',
+        security: [['bearerAuth' => []]],
         tags: ['Frais'],
         summary: 'Calculer les frais de scolarité',
         description: 'Calcule le montant total des frais selon le cycle et les options',
@@ -179,6 +183,7 @@ class InscriptionSwagger {
 //======================Inscription des eleves========================/
     #[OA\Post(
         path: '/api/inscription',
+        security: [['bearerAuth' => []]],
         tags: ['Inscription'],
         summary: 'Soumettre une inscription',
         description: 'Enregistre une nouvelle inscription',
@@ -269,6 +274,7 @@ class InscriptionSwagger {
 //====================Details_Inscription=======================///////
     #[OA\Get(
         path: '/api/inscription/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Inscription'],
         summary: 'Détails d\'une inscription',
         description: 'Retourne tous les détails d\'une inscription',

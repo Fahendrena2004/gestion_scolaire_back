@@ -10,6 +10,7 @@ class NoteBulletinSwagger
     
     #[OA\Get(
         path: '/api/notes',
+        security: [['bearerAuth' => []]],
         tags: ['Notes'],
         summary: 'Lister les notes',
         description: 'Retourne la liste des notes pour une inscription et une période donnée',
@@ -70,6 +71,7 @@ class NoteBulletinSwagger
 
     #[OA\Post(
         path: '/api/notes',
+        security: [['bearerAuth' => []]],
         tags: ['Notes'],
         summary: 'Ajouter une note',
         description: 'Crée une nouvelle note pour un élève',
@@ -128,6 +130,7 @@ class NoteBulletinSwagger
 
     #[OA\Get(
         path: '/api/notes/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Notes'],
         summary: 'Afficher une note',
         description: 'Retourne les détails d\'une note spécifique',
@@ -178,6 +181,7 @@ class NoteBulletinSwagger
 
     #[OA\Put(
         path: '/api/notes/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Notes'],
         summary: 'Modifier une note',
         description: 'Met à jour une note existante',
@@ -234,6 +238,7 @@ class NoteBulletinSwagger
 
     #[OA\Delete(
         path: '/api/notes/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Notes'],
         summary: 'Supprimer une note',
         description: 'Supprime une note existante',
@@ -267,6 +272,7 @@ class NoteBulletinSwagger
 
     #[OA\Post(
         path: '/api/bulletins/generate',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Générer un bulletin',
         description: 'Génère un bulletin pour un élève pour une période donnée',
@@ -332,6 +338,7 @@ class NoteBulletinSwagger
 
     #[OA\Post(
         path: '/api/bulletins/generate-class',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Générer les bulletins d\'une classe',
         description: 'Génère les bulletins pour tous les élèves d\'une classe',
@@ -375,6 +382,7 @@ class NoteBulletinSwagger
 
     #[OA\Get(
         path: '/api/bulletins/eleve/{inscriptionId}',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Bulletins d\'un élève',
         description: 'Retourne tous les bulletins d\'un élève',
@@ -416,6 +424,7 @@ class NoteBulletinSwagger
 
     #[OA\Get(
         path: '/api/bulletins/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Afficher un bulletin',
         description: 'Retourne les détails complets d\'un bulletin',
@@ -500,6 +509,7 @@ class NoteBulletinSwagger
 
     #[OA\Put(
         path: '/api/bulletins/{id}/appreciation',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Modifier l\'appréciation',
         description: 'Met à jour l\'appréciation d\'un bulletin',
@@ -546,7 +556,8 @@ class NoteBulletinSwagger
     public function updateAppreciation() {}
 
     #[OA\Get(
-        path: '/api/bulletins/class',
+        path: '/api/bulletins/classe',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Bulletins par classe',
         description: 'Retourne la liste des bulletins d\'une classe pour une période',
@@ -614,6 +625,7 @@ class NoteBulletinSwagger
 
     #[OA\Delete(
         path: '/api/bulletins/{id}',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Supprimer un bulletin',
         description: 'Supprime un bulletin et ses détails',
@@ -645,6 +657,7 @@ class NoteBulletinSwagger
 
     #[OA\Get(
         path: '/api/bulletins/{id}/pdf',
+        security: [['bearerAuth' => []]],
         tags: ['Bulletins'],
         summary: 'Exporter en PDF',
         description: 'Génère et télécharge le bulletin au format PDF',

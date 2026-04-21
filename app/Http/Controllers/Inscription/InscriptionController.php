@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inscription;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\InscriptionRequest;
+use App\Models\Inscription\Inscription;
 use App\Services\Inscription\InscriptionService;
 use App\Services\Inscription\EleveService;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,15 @@ class InscriptionController extends Controller
     }
 
 
-    //Endpoint de faire creer Inscription
+    public function index(): JsonResponse
+    {
+        $inscriptions = Inscription::all();
+
+        return response()->json([
+            'success' => true,
+            'data' => $inscriptions
+        ]);
+    }
 
     public function store(InscriptionRequest $request): JsonResponse
     {

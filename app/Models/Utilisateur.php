@@ -2,18 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
 
 class Utilisateur extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
-    
     protected $table = 'utilisateurs';
 
-    
     protected $fillable = [
         'nom',
         'prenom',
@@ -24,15 +23,11 @@ class Utilisateur extends Authenticatable
         'status',
     ];
 
-    
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    
-
-    
     public function setPasswordAttribute($value)
     {
         if (!empty($value)) {
@@ -40,34 +35,26 @@ class Utilisateur extends Authenticatable
         }
     }
 
-    /**
-     * 🧠 Accesseur : nom complet
-     * Utilisation : $user->full_name
-     */
     public function getFullNameAttribute()
     {
         return $this->nom . ' ' . $this->prenom;
     }
 
-    
     public function isAdmin()
     {
         return $this->role === 'admin';
     }
 
-   
     public function isCaissier()
     {
         return $this->role === 'caissier';
     }
 
-    
     public function isActif()
     {
         return $this->status === 'actif';
     }
 
-    
     public function isInactif()
     {
         return $this->status === 'inactif';

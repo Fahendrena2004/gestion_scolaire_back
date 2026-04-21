@@ -44,7 +44,7 @@ class DetailBulletinController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Détail du bulletin mis à jour',
+            'message' => 'DÃ©tail du bulletin mis Ã  jour',
             'data' => $detail->refresh()->load('matiere')
         ]);
     }

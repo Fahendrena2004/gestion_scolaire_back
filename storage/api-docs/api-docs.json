@@ -2,7 +2,7 @@
     "openapi": "3.0.0",
     "info": {
         "title": "Gestion Sco API",
-        "description": "Documentation API Laravel - Auth session-based",
+        "description": "Documentation API Laravel avec authentification Sanctum",
         "version": "1.0.0"
     },
     "servers": [
@@ -18,7 +18,7 @@
                     "Auth"
                 ],
                 "summary": "Connexion utilisateur",
-                "description": "Connexion et création de session Laravel",
+                "description": "Connexion utilisateur et generation d un token Sanctum",
                 "operationId": "fd38eab35a3cc28d00ada587f6955506",
                 "requestBody": {
                     "required": true,
@@ -46,7 +46,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Connexion réussie",
+                        "description": "Connexion reussie",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -57,33 +57,49 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Connexion réussie"
+                                            "example": "Connexion reussie"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "1|sanctum_token_exemple"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
                                         },
                                         "user": {
                                             "properties": {
                                                 "id": {
-                                                    "type": "integer"
+                                                    "type": "integer",
+                                                    "example": 1
                                                 },
                                                 "nom": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "example": "Rakoto"
                                                 },
                                                 "prenom": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "example": "Jean"
                                                 },
                                                 "email": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "example": "jean@example.com"
+                                                },
+                                                "telephone": {
+                                                    "type": "string",
+                                                    "example": "0340011223",
+                                                    "nullable": true
                                                 },
                                                 "role": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "example": "admin"
                                                 },
                                                 "status": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "example": "actif"
                                                 }
                                             },
                                             "type": "object"
-                                        },
-                                        "session_id": {
-                                            "type": "string"
                                         }
                                     },
                                     "type": "object"
@@ -106,7 +122,7 @@
                     "Auth"
                 ],
                 "summary": "Inscription utilisateur",
-                "description": "Créer un nouvel utilisateur",
+                "description": "Creer un nouvel utilisateur",
                 "operationId": "5e9dd82c858753ad481f146678e34951",
                 "requestBody": {
                     "required": true,
@@ -148,7 +164,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Utilisateur créé",
+                        "description": "Utilisateur cree",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -171,17 +187,17 @@
                 }
             }
         },
-        "/api/logout": {
-            "post": {
+        "/api/user": {
+            "get": {
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Déconnexion utilisateur",
-                "description": "Suppression de la session utilisateur",
-                "operationId": "d2f0239468d539b07f33e62fab239518",
+                "summary": "Recuperer l utilisateur connecte",
+                "description": "Retourne les informations de l utilisateur authentifie avec Sanctum",
+                "operationId": "7d19332a3e6d6adc9ac383ecca5c4c1e",
                 "responses": {
                     "200": {
-                        "description": "Déconnexion réussie",
+                        "description": "Utilisateur connecte recupere avec succes",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -192,18 +208,42 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Déconnexion réussie"
+                                            "example": "Utilisateur connecte recupere avec succes"
                                         },
-                                        "data": {
+                                        "user": {
                                             "properties": {
-                                                "user_id": {
-                                                    "type": "integer"
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
                                                 },
-                                                "user_email": {
-                                                    "type": "string"
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "Rakoto"
                                                 },
-                                                "session_id": {
-                                                    "type": "string"
+                                                "prenom": {
+                                                    "type": "string",
+                                                    "example": "Jean"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "jean@example.com"
+                                                },
+                                                "telephone": {
+                                                    "type": "string",
+                                                    "example": "0340011223",
+                                                    "nullable": true
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "admin"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "actif"
+                                                },
+                                                "full_name": {
+                                                    "type": "string",
+                                                    "example": "Rakoto Jean"
                                                 }
                                             },
                                             "type": "object"
@@ -214,10 +254,71 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Deconnexion utilisateur",
+                "description": "Revocation du token Sanctum courant",
+                "operationId": "d2f0239468d539b07f33e62fab239518",
+                "responses": {
+                    "200": {
+                        "description": "Deconnexion reussie",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Deconnexion reussie"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "user_email": {
+                                                    "type": "string",
+                                                    "example": "jean@example.com"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
                     "500": {
                         "description": "Erreur serveur"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/inscription/cycles": {
@@ -256,7 +357,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/inscription/niveaux/{cycle}": {
@@ -315,17 +421,22 @@
                     "404": {
                         "description": "Cycle non trouvé"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
-        "/api/inscription/classes/{niveauId}": {
+        "/api/inscription/classes/niveau/{niveauId}": {
             "get": {
                 "tags": [
                     "Cycles"
                 ],
                 "summary": "Récupérer les classes par niveau",
                 "description": "Retourne la liste des classes pour un niveau donné",
-                "operationId": "0ed8b9b6ed9452e38a451e94cf5e2589",
+                "operationId": "0165870fa0b99d502a863ea661af5c07",
                 "parameters": [
                     {
                         "name": "niveauId",
@@ -374,7 +485,12 @@
                     "404": {
                         "description": "Niveau non trouvé"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/inscription/frais/calcul": {
@@ -463,10 +579,32 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/inscription": {
+            "get": {
+                "tags": [
+                    "Inscription"
+                ],
+                "summary": "Lister les inscriptions",
+                "operationId": "ee622554c0cfff66ba7334731de66038",
+                "responses": {
+                    "200": {
+                        "description": "Liste des inscriptions"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "post": {
                 "tags": [
                     "Inscription"
@@ -673,7 +811,12 @@
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/inscription/{id}": {
@@ -761,7 +904,12 @@
                     "404": {
                         "description": "Inscription non trouvée"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/notes": {
@@ -870,7 +1018,12 @@
                     "422": {
                         "description": "Erreur de validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "post": {
                 "tags": [
@@ -1012,7 +1165,12 @@
                     "500": {
                         "description": "Erreur serveur"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/notes/{id}": {
@@ -1098,7 +1256,12 @@
                     "404": {
                         "description": "Note non trouvée"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "put": {
                 "tags": [
@@ -1197,7 +1360,12 @@
                     "422": {
                         "description": "Erreur de validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "delete": {
                 "tags": [
@@ -1245,7 +1413,12 @@
                     "500": {
                         "description": "Erreur serveur"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/generate": {
@@ -1384,7 +1557,12 @@
                     "500": {
                         "description": "Erreur serveur"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/generate-class": {
@@ -1466,7 +1644,12 @@
                     "422": {
                         "description": "Erreur de validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/eleve/{inscriptionId}": {
@@ -1529,7 +1712,12 @@
                     "404": {
                         "description": "Inscription non trouvée"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/{id}": {
@@ -1661,7 +1849,12 @@
                     "404": {
                         "description": "Bulletin non trouvé"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             },
             "delete": {
                 "tags": [
@@ -1709,7 +1902,12 @@
                     "500": {
                         "description": "Erreur serveur"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/{id}/appreciation": {
@@ -1790,17 +1988,22 @@
                     "422": {
                         "description": "Erreur de validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
-        "/api/bulletins/class": {
+        "/api/bulletins/classe": {
             "get": {
                 "tags": [
                     "Bulletins"
                 ],
                 "summary": "Bulletins par classe",
                 "description": "Retourne la liste des bulletins d'une classe pour une période",
-                "operationId": "33d5c1e4139063b25cbd24f2a2ed554c",
+                "operationId": "a8b20ed000f143e3eb30cd8ba91e4718",
                 "parameters": [
                     {
                         "name": "classe_id",
@@ -1889,7 +2092,12 @@
                     "422": {
                         "description": "Erreur de validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/bulletins/{id}/pdf": {
@@ -1922,7 +2130,1493 @@
                     "404": {
                         "description": "Bulletin non trouvé"
                     }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/teste": {
+            "get": {
+                "tags": [
+                    "System"
+                ],
+                "summary": "Verifier que l API fonctionne",
+                "operationId": "1724187b93fbf880ceea2cc5938f0b8f",
+                "responses": {
+                    "200": {
+                        "description": "API disponible",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "API fonctionne"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
                 }
+            }
+        },
+        "/api/setup/annee-scolaire": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Creer l annee scolaire initiale",
+                "operationId": "282c3739e30420ff3cfcbabc08dd6f17",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "date_debut",
+                                    "date_fin",
+                                    "statut"
+                                ],
+                                "properties": {
+                                    "date_debut": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-09-01"
+                                    },
+                                    "date_fin": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-06-30"
+                                    },
+                                    "statut": {
+                                        "type": "string",
+                                        "example": "en_cours"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Annee scolaire creee"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                }
+            }
+        },
+        "/api/setup/niveaux": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Creer les niveaux par defaut",
+                "operationId": "cfb405587410bc3f6f2fb5734e0f94fd",
+                "responses": {
+                    "200": {
+                        "description": "Niveaux crees ou deja existants"
+                    }
+                }
+            }
+        },
+        "/api/setup/classes": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Generer automatiquement les classes",
+                "operationId": "594084487b3bd78a37e75bcf144449b1",
+                "responses": {
+                    "200": {
+                        "description": "Classes generees ou deja existantes"
+                    },
+                    "400": {
+                        "description": "Aucune annee scolaire active"
+                    }
+                }
+            }
+        },
+        "/api/setup/frais": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Creer les types de frais par defaut",
+                "operationId": "ea18034f0fe5825d5b3db49a970a7cd2",
+                "responses": {
+                    "200": {
+                        "description": "Types de frais crees ou deja existants"
+                    }
+                }
+            }
+        },
+        "/api/setup/status": {
+            "get": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Consulter l etat de l installation",
+                "operationId": "402af0a9b526819d98bea02782dc79ee",
+                "responses": {
+                    "200": {
+                        "description": "Etat de l installation"
+                    }
+                }
+            }
+        },
+        "/api/setup/reset": {
+            "post": {
+                "tags": [
+                    "Setup"
+                ],
+                "summary": "Reinitialiser les donnees d installation",
+                "operationId": "85beb19dcfb0c223c84de85c811da06b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "confirmation"
+                                ],
+                                "properties": {
+                                    "confirmation": {
+                                        "type": "string",
+                                        "example": "RESET"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Donnees reinitialisees"
+                    },
+                    "422": {
+                        "description": "Confirmation invalide"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/annee-scolaires": {
+            "get": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Lister les annees scolaires",
+                "operationId": "f28a1f2d93588f82454d263745888645",
+                "responses": {
+                    "200": {
+                        "description": "Liste des annees scolaires"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Creer une annee scolaire",
+                "operationId": "603964498379cd7b2cdaea4d2349e206",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "date_debut",
+                                    "date_fin",
+                                    "statut"
+                                ],
+                                "properties": {
+                                    "date_debut": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "date_fin": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "statut": {
+                                        "type": "string",
+                                        "example": "en_cours"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Annee scolaire creee"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/annee-scolaires/active": {
+            "get": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Recuperer l annee scolaire active",
+                "operationId": "c91fcdd4b57902c531ffee1db3e30caf",
+                "responses": {
+                    "200": {
+                        "description": "Annee scolaire active"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/annee-scolaires/{id}": {
+            "get": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Afficher une annee scolaire",
+                "operationId": "c98085b1f0bf12b617d325311da4c0b9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail de l annee scolaire"
+                    },
+                    "404": {
+                        "description": "Annee non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Modifier une annee scolaire",
+                "operationId": "9c7104d1f59b827a47715c21f8a3f51f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "date_debut": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "date_fin": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "statut": {
+                                        "type": "string",
+                                        "example": "planifie"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Annee scolaire mise a jour"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Annees Scolaires"
+                ],
+                "summary": "Supprimer une annee scolaire",
+                "operationId": "b952e6127c5c4f90a45bd94e5926afa5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Annee scolaire supprimee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/niveaux": {
+            "get": {
+                "tags": [
+                    "Niveaux"
+                ],
+                "summary": "Lister les niveaux",
+                "operationId": "2a70eec2f60fd5c7a57c53cb44a53551",
+                "responses": {
+                    "200": {
+                        "description": "Liste des niveaux"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Niveaux"
+                ],
+                "summary": "Creer un niveau",
+                "operationId": "a36e54f9dd50de257ddbc44071358351",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "cycle",
+                                    "nom_niveau"
+                                ],
+                                "properties": {
+                                    "cycle": {
+                                        "type": "string",
+                                        "example": "college"
+                                    },
+                                    "nom_niveau": {
+                                        "type": "string",
+                                        "example": "5eme"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Niveau cree"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/niveaux/{id}": {
+            "get": {
+                "tags": [
+                    "Niveaux"
+                ],
+                "summary": "Afficher un niveau",
+                "operationId": "795420e80d5af00eec5a420e8c4caa71",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail du niveau"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Niveaux"
+                ],
+                "summary": "Modifier un niveau",
+                "operationId": "1abf5deada52439fa2116b9332d5296b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "cycle": {
+                                        "type": "string",
+                                        "example": "lycee"
+                                    },
+                                    "nom_niveau": {
+                                        "type": "string",
+                                        "example": "Terminale"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Niveau mis a jour"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Niveaux"
+                ],
+                "summary": "Supprimer un niveau",
+                "operationId": "11811ee4056934507dea032621708b7d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Niveau supprime"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/classes": {
+            "get": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Lister les classes",
+                "operationId": "cf141f553170118b1f9f98e590dd0dde",
+                "responses": {
+                    "200": {
+                        "description": "Liste des classes"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Creer une classe",
+                "operationId": "0894b29f344827c9906a9e596e76aec4",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nom_classe",
+                                    "niveau_id",
+                                    "code_division",
+                                    "anneeScolaire_id"
+                                ],
+                                "properties": {
+                                    "nom_classe": {
+                                        "type": "string",
+                                        "example": "6eme A"
+                                    },
+                                    "niveau_id": {
+                                        "type": "integer",
+                                        "example": 6
+                                    },
+                                    "code_division": {
+                                        "type": "string",
+                                        "example": "A"
+                                    },
+                                    "anneeScolaire_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Classe creee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/classes/cycle/{cycle}": {
+            "get": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Lister les classes par cycle",
+                "operationId": "ac9958c7f4119143741d1c693ca45eb6",
+                "parameters": [
+                    {
+                        "name": "cycle",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "college"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des classes du cycle"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/classes/{id}": {
+            "get": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Afficher une classe",
+                "operationId": "e5f7a014eb9715b427f9292ad5b02fb4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail de la classe"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Modifier une classe",
+                "operationId": "3f01db99a72b0e663e95b3651c9e559b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "nom_classe": {
+                                        "type": "string"
+                                    },
+                                    "niveau_id": {
+                                        "type": "integer"
+                                    },
+                                    "code_division": {
+                                        "type": "string"
+                                    },
+                                    "effectif": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Classe mise a jour"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Classes"
+                ],
+                "summary": "Supprimer une classe",
+                "operationId": "c03ab25c6ac3df7659f3baf6db15f6e9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Classe supprimee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/frais/types": {
+            "get": {
+                "tags": [
+                    "Types de Frais"
+                ],
+                "summary": "Lister les types de frais",
+                "operationId": "56582372c95882b6de5b710e6673fd8a",
+                "responses": {
+                    "200": {
+                        "description": "Liste des types de frais"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Types de Frais"
+                ],
+                "summary": "Creer un type de frais",
+                "operationId": "3c81175645696b266e4ffb17506b526f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "libelle",
+                                    "montant",
+                                    "est_obligatoire"
+                                ],
+                                "properties": {
+                                    "libelle": {
+                                        "type": "string",
+                                        "example": "Cantine"
+                                    },
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 75000
+                                    },
+                                    "est_obligatoire": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Type de frais cree"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/frais/types/{id}": {
+            "put": {
+                "tags": [
+                    "Types de Frais"
+                ],
+                "summary": "Modifier un type de frais",
+                "operationId": "63a82d271b75546eb618c60951992edb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "libelle": {
+                                        "type": "string"
+                                    },
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "est_obligatoire": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Type de frais mis a jour"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Types de Frais"
+                ],
+                "summary": "Supprimer un type de frais",
+                "operationId": "93ac1f22eb5c5d3834bf34657719cf0b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Type de frais supprime"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/{id}/infos-dynamiques": {
+            "get": {
+                "tags": [
+                    "Inscription"
+                ],
+                "summary": "Recuperer les informations dynamiques d une inscription",
+                "operationId": "fd6a049001777beff007b034c08aa0b9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Informations dynamiques"
+                    },
+                    "404": {
+                        "description": "Inscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/{inscriptionId}/paiements": {
+            "get": {
+                "tags": [
+                    "Paiements"
+                ],
+                "summary": "Lister les paiements d une inscription",
+                "operationId": "9af136eab7b1480faf3f586422cccede",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des paiements"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Paiements"
+                ],
+                "summary": "Enregistrer un paiement",
+                "operationId": "07c8e85e8028ee3994234fd2b8e9a2dc",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "montant",
+                                    "date_paiement"
+                                ],
+                                "properties": {
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 150000
+                                    },
+                                    "date_paiement": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-04-21"
+                                    },
+                                    "reference": {
+                                        "type": "string",
+                                        "example": "PAY-123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Paiement enregistre"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inscription/paiements/{id}": {
+            "get": {
+                "tags": [
+                    "Paiements"
+                ],
+                "summary": "Afficher un paiement",
+                "operationId": "30bab69c60adb6f555b40c7584027caa",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail du paiement"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Paiements"
+                ],
+                "summary": "Supprimer un paiement",
+                "operationId": "9ddd24b79e9d60d2b8ce27d17779d28d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paiement supprime"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matieres": {
+            "get": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Lister les matieres",
+                "operationId": "6fdc8d8f6ef4fea89a36e009e8d582e5",
+                "responses": {
+                    "200": {
+                        "description": "Liste des matieres"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Creer une matiere",
+                "operationId": "78b5b856129651316fc377ff0724c861",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nom",
+                                    "coefficient"
+                                ],
+                                "properties": {
+                                    "nom": {
+                                        "type": "string",
+                                        "example": "Mathematiques"
+                                    },
+                                    "coefficient": {
+                                        "type": "integer",
+                                        "example": 4
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Matiere creee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matieres/multiple": {
+            "post": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Creer plusieurs matieres",
+                "operationId": "ecc44d439d192efad60f4630629ab623",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "matieres"
+                                ],
+                                "properties": {
+                                    "matieres": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "Francais"
+                                                },
+                                                "coefficient": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Matieres ajoutees"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matieres/{id}": {
+            "get": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Afficher une matiere",
+                "operationId": "e742c8c55d821507b59754f8538c8ac4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail de la matiere"
+                    },
+                    "404": {
+                        "description": "Matiere non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Modifier une matiere",
+                "operationId": "765d95a5fa666531eed0b15f0b8299c4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "nom": {
+                                        "type": "string"
+                                    },
+                                    "coefficient": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Matiere mise a jour"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Supprimer une matiere",
+                "operationId": "58eb32f5f9f75504d91ee4353dbb2b7f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Matiere supprimee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/matieres/suggestions/{cycle}": {
+            "get": {
+                "tags": [
+                    "Matieres"
+                ],
+                "summary": "Recuperer les suggestions de matieres par cycle",
+                "operationId": "935bf012386e22d0082383d37ce12400",
+                "parameters": [
+                    {
+                        "name": "cycle",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "college"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Suggestions disponibles"
+                    },
+                    "400": {
+                        "description": "Cycle invalide"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notes/moyenne/{inscriptionId}/{periode}": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Calculer la moyenne generale",
+                "operationId": "97fc5f9440a609cdefd58c1c382c9fc6",
+                "parameters": [
+                    {
+                        "name": "inscriptionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "periode",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "TRIMESTRE_1"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Moyenne calculee"
+                    },
+                    "404": {
+                        "description": "Inscription non trouvee"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/detail-bulletins/bulletin/{bulletinId}": {
+            "get": {
+                "tags": [
+                    "Detail Bulletins"
+                ],
+                "summary": "Lister les details d un bulletin",
+                "operationId": "1497bc86fe67bfe0daca62bc1ecafeb0",
+                "parameters": [
+                    {
+                        "name": "bulletinId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Details du bulletin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/detail-bulletins/{id}": {
+            "put": {
+                "tags": [
+                    "Detail Bulletins"
+                ],
+                "summary": "Modifier un detail de bulletin",
+                "operationId": "1d738d75f5b3097701e4f9d46f74824a",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "moyenne_matiere": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 14.5
+                                    },
+                                    "rang_matiere": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "appreciation": {
+                                        "type": "string",
+                                        "example": "Bon travail"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Detail du bulletin mis a jour"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "bearerFormat": "Token",
+                "scheme": "bearer"
             }
         }
     },
@@ -1950,6 +3644,42 @@
         {
             "name": "Bulletins",
             "description": "Bulletins"
+        },
+        {
+            "name": "System",
+            "description": "System"
+        },
+        {
+            "name": "Setup",
+            "description": "Setup"
+        },
+        {
+            "name": "Annees Scolaires",
+            "description": "Annees Scolaires"
+        },
+        {
+            "name": "Niveaux",
+            "description": "Niveaux"
+        },
+        {
+            "name": "Classes",
+            "description": "Classes"
+        },
+        {
+            "name": "Types de Frais",
+            "description": "Types de Frais"
+        },
+        {
+            "name": "Paiements",
+            "description": "Paiements"
+        },
+        {
+            "name": "Matieres",
+            "description": "Matieres"
+        },
+        {
+            "name": "Detail Bulletins",
+            "description": "Detail Bulletins"
         }
     ]
 }

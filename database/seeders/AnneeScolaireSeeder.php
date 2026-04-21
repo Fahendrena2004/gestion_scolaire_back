@@ -14,7 +14,6 @@ class AnneeScolaireSeeder extends Seeder
     public function run(): void
     {
         //
-
             DB::table('annee_scolaires')->insert([
                 'date_debut' => '2025-09-01',
                 'date_fin' => '2026-06-30',

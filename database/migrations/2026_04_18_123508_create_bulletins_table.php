@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('bulletins', function (Blueprint $table) {
             $table->id();
-            $table->string('periode');
+            $table->string('periode',10);
             $table->decimal('moyenne_eleve', 10, 2);
             $table->decimal('moyenne_classe', 10, 2);
             $table->integer('rang');

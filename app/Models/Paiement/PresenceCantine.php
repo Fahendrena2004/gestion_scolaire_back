@@ -12,12 +12,14 @@ class PresenceCantine extends Model
     protected $fillable = [
         'inscription_id',
         'date_presence',
+        'montant',
         'est_paye',
         'paiement_id'
     ];
 
     protected $casts = [
         'date_presence' => 'date',
+        'montant' => 'decimal:2',
         'est_paye' => 'boolean'
     ];
 

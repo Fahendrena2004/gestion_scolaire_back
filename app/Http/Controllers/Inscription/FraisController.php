@@ -15,85 +15,61 @@ class FraisController extends Controller
             'cycle' => 'required|string|in:primaire,college,lycee',
             'parascolaire' => 'sometimes|boolean',
             'cantine' => 'sometimes|boolean',
-            'sports' => 'sometimes|boolean'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $total = 0;
         $details = [];
 
-        // Frais d'inscription (obligatoire)
-        $inscription = TypeFrais::where('libelle', 'Inscription')->first();
-        if ($inscription) {
-            $total += $inscription->montant;
+        $fraisObligatoires = [
+            'Inscription',
+            $this->getLibelleScolarite($request->cycle),
+            'Frais technologiques',
+        ];
+
+        foreach ($fraisObligatoires as $libelle) {
+            $typeFrais = TypeFrais::where('libelle', $libelle)->first();
+
+            if (!$typeFrais) {
+                continue;
+            }
+
+            $total += $typeFrais->montant;
             $details[] = [
-                'libelle' => $inscription->libelle,
-                'montant' => $inscription->montant,
-                'type' => 'obligatoire'
+                'libelle' => $typeFrais->libelle,
+                'montant' => $typeFrais->montant,
+                'type' => 'obligatoire',
             ];
         }
 
-        // Scolarité selon le cycle
-        $scolarite = TypeFrais::where('libelle', 'like', 'Scolarité%')
-            ->where('libelle', 'like', '%' . ucfirst($request->cycle) . '%')
-            ->first();
-        
-        if ($scolarite) {
-            $total += $scolarite->montant;
-            $details[] = [
-                'libelle' => $scolarite->libelle,
-                'montant' => $scolarite->montant,
-                'type' => 'obligatoire'
-            ];
-        }
+        if ($request->boolean('parascolaire')) {
+            $parascolaire = TypeFrais::where('libelle', 'Parascolaire')->first();
 
-        // Frais technologiques
-        $techno = TypeFrais::where('libelle', 'Frais technologiques')->first();
-        if ($techno) {
-            $total += $techno->montant;
-            $details[] = [
-                'libelle' => $techno->libelle,
-                'montant' => $techno->montant,
-                'type' => 'obligatoire'
-            ];
-        }
-
-        // Options
-        if ($request->parascolaire) {
-            $para = TypeFrais::where('libelle', 'Parascolaire')->first();
-            if ($para) {
-                $total += $para->montant;
+            if ($parascolaire) {
+                $total += $parascolaire->montant;
                 $details[] = [
-                    'libelle' => $para->libelle,
-                    'montant' => $para->montant,
-                    'type' => 'optionnel'
+                    'libelle' => $parascolaire->libelle,
+                    'montant' => $parascolaire->montant,
+                    'type' => 'option',
                 ];
             }
         }
 
-        if ($request->cantine) {
+        if ($request->boolean('cantine')) {
             $cantine = TypeFrais::where('libelle', 'Cantine')->first();
+
             if ($cantine) {
                 $total += $cantine->montant;
                 $details[] = [
                     'libelle' => $cantine->libelle,
                     'montant' => $cantine->montant,
-                    'type' => 'optionnel'
-                ];
-            }
-        }
-
-        if ($request->sports) {
-            $sports = TypeFrais::where('libelle', 'Sports')->first();
-            if ($sports) {
-                $total += $sports->montant;
-                $details[] = [
-                    'libelle' => $sports->libelle,
-                    'montant' => $sports->montant,
-                    'type' => 'optionnel'
+                    'type' => 'option',
                 ];
             }
         }
@@ -102,8 +78,18 @@ class FraisController extends Controller
             'success' => true,
             'data' => [
                 'total' => $total,
-                'details' => $details
-            ]
+                'details' => $details,
+            ],
         ]);
+    }
+
+    private function getLibelleScolarite(string $cycle): string
+    {
+        return match ($cycle) {
+            'primaire' => 'Scolarité - Primaire',
+            'college' => 'Scolarité - Collège',
+            'lycee' => 'Scolarité - Lycée',
+            default => 'Scolarité',
+        };
     }
 }

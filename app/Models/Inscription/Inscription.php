@@ -4,9 +4,15 @@ namespace App\Models\Inscription;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Utilisateur;
+use App\Models\Paiement\PresenceCantine;
+use App\Models\Paiement\ResumePaiement;
 class Inscription extends Model
 {
     protected $table = 'inscriptions';
+
+    protected $appends = [
+        'user_id',
+    ];
 
     protected $fillable = [
         'id_eleve',
@@ -39,6 +45,11 @@ class Inscription extends Model
         return $this->belongsTo(Utilisateur::class, 'utilisateur_id', 'id');
     }
 
+    public function user()
+    {
+        return $this->utilisateur();
+    }
+
     public function paiements()
     {
         return $this->hasMany(Paiement::class, 'inscription_id');
@@ -62,9 +73,19 @@ class Inscription extends Model
         return $this->hasMany(FraisApplique::class, 'id_inscription');
     }
 
-    public function echeances()
+    public function resumePaiement()
     {
-    return $this->hasMany(Echeance::class, 'inscription_id');
+        return $this->hasOne(ResumePaiement::class, 'inscription_id');
+    }
+
+    public function presencesCantine()
+    {
+        return $this->hasMany(PresenceCantine::class, 'inscription_id');
+    }
+
+    public function getUserIdAttribute()
+    {
+        return $this->utilisateur_id;
     }
 
 }

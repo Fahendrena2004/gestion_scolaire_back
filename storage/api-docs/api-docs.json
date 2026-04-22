@@ -321,41 +321,38 @@
                 ]
             }
         },
+        "/api/caissier/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Tableau de bord du caissier",
+                "operationId": "8964e447620241be76c4000f2145a733",
+                "responses": {
+                    "200": {
+                        "description": "Succès"
+                    },
+                    "401": {
+                        "description": "Non authentifié"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/inscription/cycles": {
             "get": {
                 "tags": [
                     "Cycles"
                 ],
-                "summary": "Récupérer tous les cycles",
-                "description": "Retourne la liste des cycles disponibles (primaire, college, lycee)",
+                "summary": "Recuperer tous les cycles",
                 "operationId": "6e3ccfcbd260bfa2e8cb060441819f1e",
                 "responses": {
                     "200": {
-                        "description": "Succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "example": [
-                                                "primaire",
-                                                "college",
-                                                "lycee"
-                                            ]
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Succes"
                     }
                 },
                 "security": [
@@ -370,14 +367,12 @@
                 "tags": [
                     "Cycles"
                 ],
-                "summary": "Récupérer les niveaux par cycle",
-                "description": "Retourne la liste des niveaux pour un cycle donné",
+                "summary": "Recuperer les niveaux par cycle",
                 "operationId": "53b6af537340066337b1328bc344acfa",
                 "parameters": [
                     {
                         "name": "cycle",
                         "in": "path",
-                        "description": "Cycle (primaire, college, lycee)",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -387,39 +382,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "integer",
-                                                        "example": 6
-                                                    },
-                                                    "nom_niveau": {
-                                                        "type": "string",
-                                                        "example": "6ème"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Succes"
                     },
                     "404": {
-                        "description": "Cycle non trouvé"
+                        "description": "Cycle non trouve"
                     }
                 },
                 "security": [
@@ -434,14 +400,12 @@
                 "tags": [
                     "Cycles"
                 ],
-                "summary": "Récupérer les classes par niveau",
-                "description": "Retourne la liste des classes pour un niveau donné",
+                "summary": "Recuperer les classes par niveau",
                 "operationId": "0165870fa0b99d502a863ea661af5c07",
                 "parameters": [
                     {
                         "name": "niveauId",
                         "in": "path",
-                        "description": "ID du niveau",
                         "required": true,
                         "schema": {
                             "type": "integer",
@@ -451,39 +415,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "integer",
-                                                        "example": 12
-                                                    },
-                                                    "nom_classe": {
-                                                        "type": "string",
-                                                        "example": "6ème A"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Succes"
                     },
                     "404": {
-                        "description": "Niveau non trouvé"
+                        "description": "Niveau non trouve"
                     }
                 },
                 "security": [
@@ -498,14 +433,12 @@
                 "tags": [
                     "Frais"
                 ],
-                "summary": "Calculer les frais de scolarité",
-                "description": "Calcule le montant total des frais selon le cycle et les options",
+                "summary": "Calculer les frais",
                 "operationId": "1140abbd31df2c70694a4e00dbb81fca",
                 "parameters": [
                     {
                         "name": "cycle",
                         "in": "query",
-                        "description": "Cycle (primaire, college, lycee)",
                         "required": true,
                         "schema": {
                             "type": "string",
@@ -515,7 +448,6 @@
                     {
                         "name": "parascolaire",
                         "in": "query",
-                        "description": "Option parascolaire",
                         "required": false,
                         "schema": {
                             "type": "boolean",
@@ -525,7 +457,6 @@
                     {
                         "name": "cantine",
                         "in": "query",
-                        "description": "Option cantine",
                         "required": false,
                         "schema": {
                             "type": "boolean",
@@ -535,49 +466,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "total": {
-                                                    "type": "integer",
-                                                    "example": 540000
-                                                },
-                                                "details": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "libelle": {
-                                                                "type": "string",
-                                                                "example": "Inscription"
-                                                            },
-                                                            "montant": {
-                                                                "type": "integer",
-                                                                "example": 75000
-                                                            },
-                                                            "type": {
-                                                                "type": "string",
-                                                                "example": "obligatoire"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Succes"
                     }
                 },
                 "security": [
@@ -610,7 +499,7 @@
                     "Inscription"
                 ],
                 "summary": "Soumettre une inscription",
-                "description": "Enregistre une nouvelle inscription",
+                "description": "Enregistre une inscription puis cree seulement resume_paiements. Les mois de scolarite sont generes dynamiquement au moment de l affichage et stockes dans paiements_mensuels uniquement lorsqu ils sont payes.",
                 "operationId": "4d2845a261a77b4604b5efc0d94c9dad",
                 "requestBody": {
                     "required": true,
@@ -623,7 +512,6 @@
                                     "date_naissance",
                                     "lieu_naissance",
                                     "sexe",
-                                    "cycle",
                                     "niveau_id",
                                     "classe_id"
                                 ],
@@ -657,15 +545,6 @@
                                         "type": "string",
                                         "example": "Lot IV 123 Bis",
                                         "nullable": true
-                                    },
-                                    "cycle": {
-                                        "type": "string",
-                                        "example": "college",
-                                        "enum": [
-                                            "primaire",
-                                            "college",
-                                            "lycee"
-                                        ]
                                     },
                                     "niveau_id": {
                                         "type": "integer",
@@ -703,113 +582,13 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Inscription réussie",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Inscription réussie"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "matricule": {
-                                                    "type": "string",
-                                                    "example": "RG-CL-2025-0001"
-                                                },
-                                                "eleve_id": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "inscription_id": {
-                                                    "type": "integer",
-                                                    "example": 1
-                                                },
-                                                "classe": {
-                                                    "type": "string",
-                                                    "example": "6ème B"
-                                                },
-                                                "niveau": {
-                                                    "type": "string",
-                                                    "example": "6ème"
-                                                },
-                                                "cycle": {
-                                                    "type": "string",
-                                                    "example": "college"
-                                                },
-                                                "annee_scolaire": {
-                                                    "type": "string",
-                                                    "example": "2025-09-01 - 2026-06-30"
-                                                },
-                                                "montant_total": {
-                                                    "type": "integer",
-                                                    "example": 540000
-                                                },
-                                                "montant_verse": {
-                                                    "type": "integer",
-                                                    "example": 200000
-                                                },
-                                                "reste_a_payer": {
-                                                    "type": "integer",
-                                                    "example": 340000
-                                                },
-                                                "est_paye": {
-                                                    "type": "boolean",
-                                                    "example": false
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Inscription reussie"
                     },
                     "422": {
-                        "description": "Erreur de validation",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Erreur de validation"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Erreur de validation"
                     },
                     "500": {
-                        "description": "Erreur serveur",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Erreur lors de l'inscription"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Erreur serveur"
                     }
                 },
                 "security": [
@@ -824,14 +603,12 @@
                 "tags": [
                     "Inscription"
                 ],
-                "summary": "Détails d'une inscription",
-                "description": "Retourne tous les détails d'une inscription",
+                "summary": "Details d une inscription",
                 "operationId": "2a6fcd188fe341b9eb4ef919c9185202",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "ID de l'inscription",
                         "required": true,
                         "schema": {
                             "type": "integer",
@@ -841,68 +618,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Succès",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "integer"
-                                                },
-                                                "date_inscription": {
-                                                    "type": "string"
-                                                },
-                                                "eleve": {
-                                                    "properties": {
-                                                        "id": {
-                                                            "type": "integer"
-                                                        },
-                                                        "nom": {
-                                                            "type": "string"
-                                                        },
-                                                        "prenom": {
-                                                            "type": "string"
-                                                        },
-                                                        "matricule": {
-                                                            "type": "string"
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "classe": {
-                                                    "properties": {
-                                                        "id": {
-                                                            "type": "integer"
-                                                        },
-                                                        "nom": {
-                                                            "type": "string"
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "montant_total": {
-                                                    "type": "integer"
-                                                },
-                                                "reste_a_payer": {
-                                                    "type": "integer"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Succes"
                     },
                     "404": {
-                        "description": "Inscription non trouvée"
+                        "description": "Inscription non trouvee"
                     }
                 },
                 "security": [
@@ -2144,7 +1863,6 @@
                     "Paiements - Cantine"
                 ],
                 "summary": "Recuperer les filtres de paiement cantine",
-                "description": "Retourne la liste des classes et niveaux disponibles pour filtrer les eleves.",
                 "operationId": "88a0d4eb7e987c3a70ea547409ed9ba3",
                 "responses": {
                     "200": {
@@ -2167,7 +1885,6 @@
                     "Paiements - Cantine"
                 ],
                 "summary": "Filtrer les eleves pour le paiement",
-                "description": "Filtre les inscriptions de l annee scolaire en cours par classe, niveau, nom ou matricule.",
                 "operationId": "09f23867a1969c90beed01c35524e29b",
                 "parameters": [
                     {
@@ -2265,9 +1982,6 @@
                     },
                     "422": {
                         "description": "Erreur de validation"
-                    },
-                    "500": {
-                        "description": "Erreur serveur"
                     }
                 },
                 "security": [
@@ -2282,7 +1996,7 @@
                 "tags": [
                     "Paiements - Cantine"
                 ],
-                "summary": "Lister les mois cantine disponibles",
+                "summary": "Lister les mois de cantine disponibles",
                 "operationId": "14155d0e2983286a6bee31b348f4bc60",
                 "parameters": [
                     {
@@ -2298,9 +2012,6 @@
                 "responses": {
                     "200": {
                         "description": "Mois disponibles recuperes"
-                    },
-                    "401": {
-                        "description": "Non authentifie"
                     }
                 },
                 "security": [
@@ -2315,8 +2026,7 @@
                 "tags": [
                     "Paiements - Cantine"
                 ],
-                "summary": "Recuperer les jours d un mois de cantine",
-                "description": "Les parametres mois et annee sont optionnels. Si absents, le premier mois disponible est utilise.",
+                "summary": "Recuperer les jours de cantine",
                 "operationId": "d3f5299c93f1674b03db35d6800f9fd2",
                 "parameters": [
                     {
@@ -2343,19 +2053,13 @@
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "example": 2025
+                            "example": 2026
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Jours du mois recuperes"
-                    },
-                    "400": {
-                        "description": "Parametres invalides"
-                    },
-                    "404": {
-                        "description": "Aucune donnee trouvee"
+                        "description": "Jours recuperes"
                     }
                 },
                 "security": [
@@ -2405,7 +2109,7 @@
                         "description": "Paiement effectue"
                     },
                     "422": {
-                        "description": "Erreur de validation ou de paiement"
+                        "description": "Aucun jour valide selectionne"
                     }
                 },
                 "security": [
@@ -2421,7 +2125,7 @@
                     "Paiements - Autres Frais"
                 ],
                 "summary": "Recuperer les autres frais a payer",
-                "description": "Retourne les echeances impayees hors cantine et hors scolarite.",
+                "description": "Retourne les frais appliques hors cantine et hors scolarite avec leurs montants payes/restants.",
                 "operationId": "066a4ea5b16d75ca655e1fbe4048564e",
                 "parameters": [
                     {
@@ -2463,14 +2167,14 @@
                             "schema": {
                                 "required": [
                                     "inscription_id",
-                                    "echeances_ids"
+                                    "frais_ids"
                                 ],
                                 "properties": {
                                     "inscription_id": {
                                         "type": "integer",
                                         "example": 1
                                     },
-                                    "echeances_ids": {
+                                    "frais_ids": {
                                         "type": "array",
                                         "items": {
                                             "type": "integer",
@@ -2489,9 +2193,6 @@
                     },
                     "422": {
                         "description": "Aucun frais valide selectionne"
-                    },
-                    "500": {
-                        "description": "Erreur serveur"
                     }
                 },
                 "security": [
@@ -2506,7 +2207,8 @@
                 "tags": [
                     "Paiements - Scolarite"
                 ],
-                "summary": "Recuperer les mois de scolarite a payer",
+                "summary": "Recuperer les mois de scolarite",
+                "description": "Retourne les mois generes dans paiements_mensuels avec leur statut paye/non paye.",
                 "operationId": "f24007c1db7e5e222443c14ba7e99092",
                 "parameters": [
                     {
@@ -2521,7 +2223,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Mois impayes recuperes"
+                        "description": "Mois recuperes"
                     },
                     "404": {
                         "description": "Inscription non trouvee"
@@ -2548,18 +2250,27 @@
                             "schema": {
                                 "required": [
                                     "inscription_id",
-                                    "echeances_ids"
+                                    "mois"
                                 ],
                                 "properties": {
                                     "inscription_id": {
                                         "type": "integer",
                                         "example": 1
                                     },
-                                    "echeances_ids": {
+                                    "mois": {
                                         "type": "array",
                                         "items": {
-                                            "type": "integer",
-                                            "example": 14
+                                            "properties": {
+                                                "mois": {
+                                                    "type": "integer",
+                                                    "example": 11
+                                                },
+                                                "annee": {
+                                                    "type": "integer",
+                                                    "example": 2026
+                                                }
+                                            },
+                                            "type": "object"
                                         }
                                     }
                                 },
@@ -2573,10 +2284,7 @@
                         "description": "Paiement enregistre"
                     },
                     "422": {
-                        "description": "Aucune echeance valide selectionnee"
-                    },
-                    "500": {
-                        "description": "Erreur serveur"
+                        "description": "Aucun mois valide selectionne"
                     }
                 },
                 "security": [
@@ -2591,7 +2299,7 @@
                 "tags": [
                     "Paiements - Scolarite"
                 ],
-                "summary": "Payer toutes les echeances de scolarite restantes",
+                "summary": "Payer tous les mois restants de scolarite",
                 "operationId": "65125e1865eb083d39681d19dd0c948b",
                 "parameters": [
                     {
@@ -2609,10 +2317,7 @@
                         "description": "Paiement total effectue"
                     },
                     "422": {
-                        "description": "Aucune echeance impayee"
-                    },
-                    "500": {
-                        "description": "Erreur serveur"
+                        "description": "Aucun mois valide selectionne"
                     }
                 },
                 "security": [
@@ -2643,9 +2348,6 @@
                 "responses": {
                     "200": {
                         "description": "Historique recupere"
-                    },
-                    "401": {
-                        "description": "Non authentifie"
                     }
                 },
                 "security": [
@@ -4517,6 +4219,10 @@
         {
             "name": "Auth",
             "description": "Auth"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard"
         },
         {
             "name": "Cycles",

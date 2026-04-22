@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Paiements;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inscription\Inscription;
-use App\Models\Inscription\Echeance;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\Recu;
 use Illuminate\Http\Request;
@@ -17,39 +16,34 @@ class AutresFraisController extends Controller
         return $this->payerFrais($request);
     }
 
-    /**
-     * 1. Récupérer tous les autres frais à payer (Parascolaire, Inscription, Frais techno)
-     * GET /api/autres-frais/{inscriptionId}
-     */
     public function getFraisAPayer($inscriptionId)
     {
-        $inscription = Inscription::with(['eleve', 'classe.niveau'])->findOrFail($inscriptionId);
+        $inscription = Inscription::with(['eleve', 'classe.niveau', 'fraisAppliques.typeFrais'])->findOrFail($inscriptionId);
 
-        // Exclure la cantine et la scolarité
-        $echeances = Echeance::where('inscription_id', $inscriptionId)
-            ->whereHas('typeFrais', function($q) {
-                $q->where('libelle', '!=', 'Cantine')
-                  ->where('libelle', 'not like', '%Scolarité%');
+        $frais = $inscription->fraisAppliques
+            ->filter(function ($frais) {
+                $libelle = $frais->typeFrais?->libelle;
+
+                return $libelle !== 'Cantine' && !str_starts_with((string) $libelle, 'Scolarité');
             })
-            ->where('statut', '!=', 'paye')
-            ->get();
+            ->map(function ($frais) use ($inscriptionId) {
+                $montantPaye = (float) Paiement::where('inscription_id', $inscriptionId)
+                    ->where('type', 'autre_frais')
+                    ->where('type_frais_id', $frais->id_frais)
+                    ->sum('montant');
 
-        $resultats = [];
-
-        foreach ($echeances as $echeance) {
-            $libelle = $echeance->typeFrais->libelle;
-
-            $resultats[] = [
-                'echeance_id' => $echeance->id,
-                'libelle' => $echeance->libelle,
-                'type' => $libelle,
-                'montant' => $echeance->montant,
-                'montant_paye' => $echeance->montant_paye,
-                'montant_restant' => $echeance->montant_restant,
-                'date_echeance' => $echeance->date_echeance->format('d/m/Y'),
-                'statut' => $echeance->statut
-            ];
-        }
+                return [
+                    'frais_applique_id' => $frais->id,
+                    'type_frais_id' => $frais->id_frais,
+                    'libelle' => $frais->typeFrais?->libelle,
+                    'type' => $frais->typeFrais?->libelle,
+                    'montant' => $frais->montant,
+                    'montant_paye' => $montantPaye,
+                    'montant_restant' => max((float) $frais->montant - $montantPaye, 0),
+                    'statut' => $montantPaye >= $frais->montant ? 'paye' : ($montantPaye > 0 ? 'partiel' : 'impaye'),
+                ];
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -59,114 +53,156 @@ class AutresFraisController extends Controller
                     'nom' => $inscription->eleve->nom,
                     'prenom' => $inscription->eleve->prenom,
                     'matricule' => $inscription->eleve->matricule,
-                    'classe' => $inscription->classe->nom_classe
+                    'classe' => $inscription->classe->nom_classe,
                 ],
-                'frais' => $resultats,
-                'total_restant' => collect($resultats)->sum('montant_restant')
-            ]
+                'frais' => $frais,
+                'total_restant' => $frais->sum('montant_restant'),
+            ],
         ]);
     }
 
-    /**
-     * 2. Payer des frais sélectionnés (Parascolaire, Inscription, Frais techno)
-     * POST /api/autres-frais/payer
-     */
     public function payerFrais(Request $request)
     {
         $request->validate([
             'inscription_id' => 'required|exists:inscriptions,id',
-            'echeances_ids' => 'required|array|min:1',
-            'echeances_ids.*' => 'exists:echeances,id'
+            'frais_ids' => 'required|array|min:1',
+            'frais_ids.*' => 'exists:frais_appliques,id',
         ]);
+
+        $ids = $request->input('frais_ids', []);
+
+        if (empty($ids)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucun frais selectionne',
+            ], 422);
+        }
 
         DB::beginTransaction();
 
         try {
-            $echeances = Echeance::whereIn('id', $request->echeances_ids)
-                ->where('statut', '!=', 'paye')
-                ->get();
+            $inscription = Inscription::with(['resumePaiement', 'fraisAppliques.typeFrais'])->findOrFail($request->inscription_id);
 
-            if ($echeances->isEmpty()) {
+            $fraisSelectionnes = $inscription->fraisAppliques()
+                ->with('typeFrais')
+                ->whereIn('id', $ids)
+                ->get()
+                ->filter(function ($frais) {
+                    $libelle = $frais->typeFrais?->libelle;
+
+                    return $libelle !== 'Cantine' && !str_starts_with((string) $libelle, 'Scolarité');
+                });
+
+            if ($fraisSelectionnes->isEmpty()) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Aucun frais valide sélectionné'
+                    'message' => 'Aucun frais valide selectionne',
                 ], 422);
             }
 
+            $userId = $this->getUtilisateurId($request);
             $totalMontant = 0;
             $paiementsEnregistres = [];
 
-            foreach ($echeances as $echeance) {
-                $montant = $echeance->montant_restant;
-                $totalMontant += $montant;
+            foreach ($fraisSelectionnes as $frais) {
+                $montantPaye = (float) Paiement::where('inscription_id', $inscription->id)
+                    ->where('type', 'autre_frais')
+                    ->where('type_frais_id', $frais->id_frais)
+                    ->sum('montant');
 
-                // Créer le paiement
+                $montantRestant = max((float) $frais->montant - $montantPaye, 0);
+
+                if ($montantRestant <= 0) {
+                    continue;
+                }
+
                 $paiement = Paiement::create([
                     'reference' => $this->genererReference(),
-                    'inscription_id' => $request->inscription_id,
-                    'echeance_id' => $echeance->id,
-                    'montant' => $montant,
+                    'inscription_id' => $inscription->id,
+                    'type_frais_id' => $frais->id_frais,
+                    'type' => 'autre_frais',
+                    'libelle' => $frais->typeFrais?->libelle,
+                    'details' => [
+                        'frais_applique_id' => $frais->id,
+                    ],
+                    'montant' => $montantRestant,
                     'date_paiement' => now(),
-                    'utilisateur_id' => "1",
+                    'utilisateur_id' => $userId,
                 ]);
 
-                // Mettre à jour l'échéance
-                $echeance->montant_paye = $echeance->montant;
-                $echeance->montant_restant = 0;
-                $echeance->statut = 'paye';
-                $echeance->save();
-
-                // Créer le reçu
                 $recu = Recu::create([
                     'numero' => Recu::genererNumero(),
                     'paiement_id' => $paiement->id,
-                    'inscription_id' => $request->inscription_id,
-                    'montant' => $montant,
+                    'inscription_id' => $inscription->id,
+                    'montant' => $montantRestant,
                     'date_emission' => now(),
-                    'libelle' => $echeance->libelle,
-                    'details' => null
+                    'libelle' => $frais->typeFrais?->libelle,
+                    'details' => json_encode([
+                        'frais_applique_id' => $frais->id,
+                    ]),
                 ]);
 
+                $totalMontant += $montantRestant;
                 $paiementsEnregistres[] = [
-                    'echeance_id' => $echeance->id,
-                    'libelle' => $echeance->libelle,
-                    'type' => $echeance->typeFrais->libelle,
-                    'montant' => $montant,
+                    'frais_applique_id' => $frais->id,
+                    'libelle' => $frais->typeFrais?->libelle,
+                    'montant' => $montantRestant,
                     'paiement_id' => $paiement->id,
-                    'recu_id' => $recu->id
+                    'recu_id' => $recu->id,
                 ];
             }
+
+            $this->mettreAJourResume($inscription->resumePaiement);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Paiement effectué avec succès',
+                'message' => 'Paiement effectue avec succes',
                 'data' => [
                     'total_paye' => $totalMontant,
                     'nombre_frais' => count($paiementsEnregistres),
-                    'paiements' => $paiementsEnregistres
-                ]
+                    'paiements' => $paiementsEnregistres,
+                ],
             ]);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du paiement: ' . $e->getMessage(),
-                'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Générer une référence unique
-     */
+    private function mettreAJourResume($resume): void
+    {
+        if (!$resume) {
+            return;
+        }
+
+        $totalPaye = (float) Paiement::where('inscription_id', $resume->inscription_id)->sum('montant');
+
+        $resume->update([
+            'total_paye' => $totalPaye,
+            'total_restant' => max((float) $resume->total_du - $totalPaye, 0),
+        ]);
+    }
+
     private function genererReference(): string
     {
         $lastId = Paiement::max('id') ?? 0;
         $numero = str_pad($lastId + 1, 6, '0', STR_PAD_LEFT);
+
         return 'PAY-' . date('Y') . '-' . $numero;
+    }
+
+    private function getUtilisateurId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        return $user ? (int) $user->getKey() : null;
     }
 }

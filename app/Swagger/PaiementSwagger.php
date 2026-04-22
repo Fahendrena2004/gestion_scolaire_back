@@ -10,7 +10,6 @@ class PaiementSwagger
         path: '/api/cantine/filtres',
         tags: ['Paiements - Cantine'],
         summary: 'Recuperer les filtres de paiement cantine',
-        description: 'Retourne la liste des classes et niveaux disponibles pour filtrer les eleves.',
         security: [['bearerAuth' => []]],
         responses: [
             new OA\Response(response: 200, description: 'Filtres recuperes avec succes'),
@@ -23,7 +22,6 @@ class PaiementSwagger
         path: '/api/cantine/eleves',
         tags: ['Paiements - Cantine'],
         summary: 'Filtrer les eleves pour le paiement',
-        description: 'Filtre les inscriptions de l annee scolaire en cours par classe, niveau, nom ou matricule.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'classe_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 12)),
@@ -57,7 +55,6 @@ class PaiementSwagger
         responses: [
             new OA\Response(response: 200, description: 'Presence enregistree'),
             new OA\Response(response: 422, description: 'Erreur de validation'),
-            new OA\Response(response: 500, description: 'Erreur serveur'),
         ]
     )]
     public function cantinePresence() {}
@@ -65,14 +62,13 @@ class PaiementSwagger
     #[OA\Get(
         path: '/api/cantine/mois-disponibles/{inscriptionId}',
         tags: ['Paiements - Cantine'],
-        summary: 'Lister les mois cantine disponibles',
+        summary: 'Lister les mois de cantine disponibles',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'inscriptionId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Mois disponibles recuperes'),
-            new OA\Response(response: 401, description: 'Non authentifie'),
         ]
     )]
     public function cantineMoisDisponibles() {}
@@ -80,18 +76,15 @@ class PaiementSwagger
     #[OA\Get(
         path: '/api/cantine/jours/{inscriptionId}',
         tags: ['Paiements - Cantine'],
-        summary: 'Recuperer les jours d un mois de cantine',
-        description: 'Les parametres mois et annee sont optionnels. Si absents, le premier mois disponible est utilise.',
+        summary: 'Recuperer les jours de cantine',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'inscriptionId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
             new OA\Parameter(name: 'mois', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 9)),
-            new OA\Parameter(name: 'annee', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2025)),
+            new OA\Parameter(name: 'annee', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2026)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Jours du mois recuperes'),
-            new OA\Response(response: 400, description: 'Parametres invalides'),
-            new OA\Response(response: 404, description: 'Aucune donnee trouvee'),
+            new OA\Response(response: 200, description: 'Jours recuperes'),
         ]
     )]
     public function cantineJours() {}
@@ -107,17 +100,13 @@ class PaiementSwagger
                 required: ['inscription_id', 'dates'],
                 properties: [
                     new OA\Property(property: 'inscription_id', type: 'integer', example: 1),
-                    new OA\Property(
-                        property: 'dates',
-                        type: 'array',
-                        items: new OA\Items(type: 'string', format: 'date', example: '2026-04-21')
-                    ),
+                    new OA\Property(property: 'dates', type: 'array', items: new OA\Items(type: 'string', format: 'date', example: '2026-04-21')),
                 ]
             )
         ),
         responses: [
             new OA\Response(response: 200, description: 'Paiement effectue'),
-            new OA\Response(response: 422, description: 'Erreur de validation ou de paiement'),
+            new OA\Response(response: 422, description: 'Aucun jour valide selectionne'),
         ]
     )]
     public function cantinePayer() {}
@@ -126,7 +115,7 @@ class PaiementSwagger
         path: '/api/autres-frais/{inscriptionId}',
         tags: ['Paiements - Autres Frais'],
         summary: 'Recuperer les autres frais a payer',
-        description: 'Retourne les echeances impayees hors cantine et hors scolarite.',
+        description: 'Retourne les frais appliques hors cantine et hors scolarite avec leurs montants payes/restants.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'inscriptionId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
@@ -146,21 +135,16 @@ class PaiementSwagger
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['inscription_id', 'echeances_ids'],
+                required: ['inscription_id', 'frais_ids'],
                 properties: [
                     new OA\Property(property: 'inscription_id', type: 'integer', example: 1),
-                    new OA\Property(
-                        property: 'echeances_ids',
-                        type: 'array',
-                        items: new OA\Items(type: 'integer', example: 25)
-                    ),
+                    new OA\Property(property: 'frais_ids', type: 'array', items: new OA\Items(type: 'integer', example: 25)),
                 ]
             )
         ),
         responses: [
             new OA\Response(response: 200, description: 'Paiement effectue'),
             new OA\Response(response: 422, description: 'Aucun frais valide selectionne'),
-            new OA\Response(response: 500, description: 'Erreur serveur'),
         ]
     )]
     public function autresFraisPayer() {}
@@ -168,13 +152,14 @@ class PaiementSwagger
     #[OA\Get(
         path: '/api/scolarite/mois/{inscriptionId}',
         tags: ['Paiements - Scolarite'],
-        summary: 'Recuperer les mois de scolarite a payer',
+        summary: 'Recuperer les mois de scolarite',
+        description: 'Retourne les mois generes dans paiements_mensuels avec leur statut paye/non paye.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'inscriptionId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Mois impayes recuperes'),
+            new OA\Response(response: 200, description: 'Mois recuperes'),
             new OA\Response(response: 404, description: 'Inscription non trouvee'),
         ]
     )]
@@ -188,21 +173,25 @@ class PaiementSwagger
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['inscription_id', 'echeances_ids'],
+                required: ['inscription_id', 'mois'],
                 properties: [
                     new OA\Property(property: 'inscription_id', type: 'integer', example: 1),
                     new OA\Property(
-                        property: 'echeances_ids',
+                        property: 'mois',
                         type: 'array',
-                        items: new OA\Items(type: 'integer', example: 14)
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'mois', type: 'integer', example: 11),
+                                new OA\Property(property: 'annee', type: 'integer', example: 2026),
+                            ]
+                        )
                     ),
                 ]
             )
         ),
         responses: [
             new OA\Response(response: 200, description: 'Paiement enregistre'),
-            new OA\Response(response: 422, description: 'Aucune echeance valide selectionnee'),
-            new OA\Response(response: 500, description: 'Erreur serveur'),
+            new OA\Response(response: 422, description: 'Aucun mois valide selectionne'),
         ]
     )]
     public function scolaritePayer() {}
@@ -210,15 +199,14 @@ class PaiementSwagger
     #[OA\Post(
         path: '/api/scolarite/payer-tout/{inscriptionId}',
         tags: ['Paiements - Scolarite'],
-        summary: 'Payer toutes les echeances de scolarite restantes',
+        summary: 'Payer tous les mois restants de scolarite',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'inscriptionId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Paiement total effectue'),
-            new OA\Response(response: 422, description: 'Aucune echeance impayee'),
-            new OA\Response(response: 500, description: 'Erreur serveur'),
+            new OA\Response(response: 422, description: 'Aucun mois valide selectionne'),
         ]
     )]
     public function scolaritePayerTout() {}
@@ -233,7 +221,6 @@ class PaiementSwagger
         ],
         responses: [
             new OA\Response(response: 200, description: 'Historique recupere'),
-            new OA\Response(response: 401, description: 'Non authentifie'),
         ]
     )]
     public function scolariteHistorique() {}

@@ -4,275 +4,361 @@ namespace App\Http\Controllers\Paiements;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inscription\Inscription;
-use App\Models\Inscription\Echeance;
 use App\Models\Inscription\Paiement;
+use App\Models\Paiement\PaiementMensuel;
 use App\Models\Paiement\Recu;
+use App\Models\Paiement\ResumePaiement;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ScolariteController extends Controller
 {
-    /**
-     * 1. Récupérer les mois de scolarité à payer
-     * GET /api/scolarite/mois/{inscriptionId}
-     */
     public function getMoisAPayer($inscriptionId)
     {
-        $inscription = Inscription::with(['eleve', 'classe.niveau'])->findOrFail($inscriptionId);
+        $inscription = Inscription::with([
+            'eleve',
+            'classe.niveau',
+            'anneeScolaire',
+            'resumePaiement',
+            'paiements',
+        ])->findOrFail($inscriptionId);
 
-        $echeances = Echeance::where('inscription_id', $inscriptionId)
-            ->whereHas('typeFrais', function($q) {
-                $q->where('libelle', 'like', '%Scolarité%');
-            })
-            ->where('statut', '!=', 'paye')
-            ->orderBy('annee')
-            ->orderBy('mois')
-            ->get();
+        $montantMensuel = $this->getMontantMensuel($inscription);
+        $moisAnnee = $this->genererMoisAnneeScolaire($inscription);
+        $moisPayes = PaiementMensuel::whereHas('resume', function ($query) use ($inscriptionId) {
+            $query->where('inscription_id', $inscriptionId);
+        })->get()->keyBy(fn ($item) => $item->annee . '-' . $item->mois);
 
-        $mois = [];
-        $totalRestant = 0;
+        $mois = collect($moisAnnee)->map(function ($periode) use ($moisPayes, $montantMensuel) {
+            $key = $periode['annee'] . '-' . $periode['mois'];
+            $lignePaye = $moisPayes->get($key);
 
-        foreach ($echeances as $e) {
-            $mois[] = [
-                'echeance_id' => $e->id,
-                'libelle' => $e->libelle,
-                'montant' => $e->montant,
-                'montant_paye' => $e->montant_paye,
-                'montant_restant' => $e->montant_restant,
-                'date_echeance' => $e->date_echeance->format('d/m/Y'),
-                'statut' => $e->statut
+            return [
+                'libelle' => $this->libelleMois($periode['mois'], $periode['annee']),
+                'mois' => $periode['mois'],
+                'annee' => $periode['annee'],
+                'montant' => $montantMensuel,
+                'est_paye' => !is_null($lignePaye),
+                'paiement_mensuel_id' => $lignePaye?->id,
+                'paiement_id' => $lignePaye?->paiement_id,
+                'date_paiement' => $lignePaye?->paiement?->date_paiement?->format('d/m/Y'),
             ];
-            $totalRestant += $e->montant_restant;
-        }
+        })->values();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'eleve' => [
-                    'id' => $inscription->eleve->id,
-                    'nom' => $inscription->eleve->nom,
-                    'prenom' => $inscription->eleve->prenom,
-                    'matricule' => $inscription->eleve->matricule,
-                    'classe' => $inscription->classe->nom_classe,
-                    'niveau' => $inscription->classe->niveau->nom_niveau
-                ],
+                'eleve' => $this->formatEleve($inscription),
                 'mois' => $mois,
-                'total_restant' => $totalRestant
-            ]
+                'total_restant' => $mois->where('est_paye', false)->sum('montant'),
+            ],
         ]);
     }
 
-    /**
-     * 2. Payer les mois de scolarité sélectionnés
-     * POST /api/scolarite/payer
-     */
     public function payerMois(Request $request)
     {
         $request->validate([
             'inscription_id' => 'required|exists:inscriptions,id',
-            'echeances_ids' => 'required|array|min:1',
-            'echeances_ids.*' => 'exists:echeances,id'
+            'mois' => 'nullable|array|min:1',
+            'mois.*.mois' => 'required_with:mois|integer|min:1|max:12',
+            'mois.*.annee' => 'required_with:mois|integer|min:2000|max:2100',
+            'paiements_mensuels_ids' => 'nullable|array|min:1',
+            'paiements_mensuels_ids.*' => 'integer|exists:paiements_mensuels,id',
         ]);
 
         DB::beginTransaction();
 
         try {
-            $echeances = Echeance::whereIn('id', $request->echeances_ids)
-                ->where('statut', '!=', 'paye')
-                ->get();
+            $inscription = Inscription::with(['resumePaiement', 'anneeScolaire', 'classe.niveau'])->findOrFail($request->inscription_id);
+            $resume = $inscription->resumePaiement;
 
-            if ($echeances->isEmpty()) {
+            if (!$resume) {
+                throw new \Exception('Resume de paiement introuvable');
+            }
+
+            $moisAutorises = collect($this->genererMoisAnneeScolaire($inscription))
+                ->keyBy(fn ($periode) => $periode['annee'] . '-' . $periode['mois']);
+
+            $moisDemandes = $this->extraireMoisDemandes($request, $resume);
+
+            if ($moisDemandes->isEmpty()) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Aucune échéance valide sélectionnée'
+                    'message' => 'Pour payer la scolarite, envoyez le champ "mois" sous la forme [{"mois":11,"annee":2025}]. Les "paiements_mensuels_ids" ne servent que pour des lignes deja creees.',
                 ], 422);
             }
 
-            $totalMontant = 0;
+            $montantMensuel = $this->getMontantMensuel($inscription);
+            $userId = $this->getUtilisateurId($request);
+            $typeFraisId = $this->getTypeFraisScolariteId($inscription);
             $paiementsEnregistres = [];
+            $totalMontant = 0;
 
-            foreach ($echeances as $echeance) {
-                $montant = $echeance->montant_restant;
-                $totalMontant += $montant;
+            foreach ($moisDemandes as $periode) {
+                $key = $periode['annee'] . '-' . $periode['mois'];
 
-                // ✅ Créer le paiement (sans mode et type)
+                if (!$moisAutorises->has($key)) {
+                    continue;
+                }
+
+                $existant = PaiementMensuel::where('resume_id', $resume->id)
+                    ->where('mois', $periode['mois'])
+                    ->where('annee', $periode['annee'])
+                    ->first();
+
+                if ($existant) {
+                    continue;
+                }
+
                 $paiement = Paiement::create([
                     'reference' => $this->genererReference(),
-                    'inscription_id' => $request->inscription_id,
-                    'echeance_id' => $echeance->id,
-                    'montant' => $montant,
+                    'inscription_id' => $inscription->id,
+                    'type_frais_id' => $typeFraisId,
+                    'type' => 'scolarite_mensuelle',
+                    'libelle' => $this->libelleMois($periode['mois'], $periode['annee']),
+                    'details' => $periode,
+                    'montant' => $montantMensuel,
                     'date_paiement' => now(),
-                    'utilisateur_id' => 1  // ← ID utilisateur valide
+                    'utilisateur_id' => $userId,
                 ]);
 
-                // Mettre à jour l'échéance
-                $echeance->montant_paye = $echeance->montant;
-                $echeance->montant_restant = 0;
-                $echeance->statut = 'paye';
-                $echeance->save();
+                $ligne = PaiementMensuel::create([
+                    'resume_id' => $resume->id,
+                    'mois' => $periode['mois'],
+                    'annee' => $periode['annee'],
+                    'montant' => $montantMensuel,
+                    'paiement_id' => $paiement->id,
+                ]);
 
-                // Créer le reçu
                 $recu = Recu::create([
                     'numero' => Recu::genererNumero(),
                     'paiement_id' => $paiement->id,
-                    'inscription_id' => $request->inscription_id,
-                    'montant' => $montant,
+                    'inscription_id' => $inscription->id,
+                    'montant' => $montantMensuel,
                     'date_emission' => now(),
-                    'libelle' => $echeance->libelle,
-                    'details' => null
+                    'libelle' => 'Scolarite - ' . $this->libelleMois($periode['mois'], $periode['annee']),
+                    'details' => json_encode($periode),
                 ]);
 
+                $totalMontant += $montantMensuel;
                 $paiementsEnregistres[] = [
-                    'echeance_id' => $echeance->id,
-                    'mois' => $echeance->libelle,
-                    'montant' => $montant,
+                    'paiement_mensuel_id' => $ligne->id,
+                    'mois' => $this->libelleMois($periode['mois'], $periode['annee']),
+                    'montant' => $montantMensuel,
                     'paiement_id' => $paiement->id,
-                    'recu_id' => $recu->id
+                    'recu_id' => $recu->id,
                 ];
             }
+
+            if (empty($paiementsEnregistres)) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun mois valide selectionne',
+                ], 422);
+            }
+
+            $this->mettreAJourResume($resume);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Paiement de la scolarité effectué avec succès',
+                'message' => 'Paiement de la scolarite effectue avec succes',
                 'data' => [
                     'total_paye' => $totalMontant,
                     'nombre_mois' => count($paiementsEnregistres),
-                    'paiements' => $paiementsEnregistres
-                ]
+                    'paiements' => $paiementsEnregistres,
+                ],
             ]);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors du paiement: ' . $e->getMessage(),
-                'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * 3. Paiement unique (tous les mois restants)
-     * POST /api/scolarite/payer-tout/{inscriptionId}
-     */
     public function payerTout($inscriptionId, Request $request)
     {
-        DB::beginTransaction();
+        $inscription = Inscription::with('anneeScolaire')->findOrFail($inscriptionId);
 
-        try {
-            $echeances = Echeance::where('inscription_id', $inscriptionId)
-                ->whereHas('typeFrais', function($q) {
-                    $q->where('libelle', 'like', '%Scolarité%');
-                })
-                ->where('statut', '!=', 'paye')
-                ->get();
+        $mois = collect($this->genererMoisAnneeScolaire($inscription))
+            ->reject(function ($periode) use ($inscriptionId) {
+                return PaiementMensuel::whereHas('resume', function ($query) use ($inscriptionId) {
+                    $query->where('inscription_id', $inscriptionId);
+                })->where('mois', $periode['mois'])
+                    ->where('annee', $periode['annee'])
+                    ->exists();
+            })
+            ->values()
+            ->all();
 
-            if ($echeances->isEmpty()) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Aucune échéance impayée'
-                ], 422);
-            }
+        $request->merge([
+            'inscription_id' => $inscriptionId,
+            'mois' => $mois,
+        ]);
 
-            $totalMontant = 0;
-            $paiementsEnregistres = [];
-
-            foreach ($echeances as $echeance) {
-                $montant = $echeance->montant_restant;
-                $totalMontant += $montant;
-
-                $paiement = Paiement::create([
-                    'reference' => $this->genererReference(),
-                    'inscription_id' => $inscriptionId,
-                    'echeance_id' => $echeance->id,
-                    'montant' => $montant,
-                    'date_paiement' => now(),
-                    'utilisateur_id' => 1
-                ]);
-
-                $echeance->montant_paye = $echeance->montant;
-                $echeance->montant_restant = 0;
-                $echeance->statut = 'paye';
-                $echeance->save();
-
-                $recu = Recu::create([
-                    'numero' => Recu::genererNumero(),
-                    'paiement_id' => $paiement->id,
-                    'inscription_id' => $inscriptionId,
-                    'montant' => $montant,
-                    'date_emission' => now(),
-                    'libelle' => $echeance->libelle,
-                    'details' => null
-                ]);
-
-                $paiementsEnregistres[] = [
-                    'echeance_id' => $echeance->id,
-                    'mois' => $echeance->libelle,
-                    'montant' => $montant
-                ];
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Paiement total de la scolarité effectué',
-                'data' => [
-                    'total_paye' => $totalMontant,
-                    'nombre_mois' => count($paiementsEnregistres),
-                    'mois_payes' => $paiementsEnregistres
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors du paiement: ' . $e->getMessage(),
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return $this->payerMois($request);
     }
 
-    /**
-     * 4. Récupérer l'historique des paiements de scolarité
-     * GET /api/scolarite/historique/{inscriptionId}
-     */
     public function getHistorique($inscriptionId)
     {
         $paiements = Paiement::where('inscription_id', $inscriptionId)
-            ->with('echeance')
+            ->where('type', 'scolarite_mensuelle')
             ->orderBy('date_paiement', 'desc')
             ->get();
 
-        $historique = [];
-        foreach ($paiements as $p) {
-            $historique[] = [
-                'id' => $p->id,
-                'reference' => $p->reference,
-                'montant' => $p->montant,
-                'date_paiement' => $p->date_paiement->format('d/m/Y'),
-                'mois' => $p->echeance ? $p->echeance->libelle : null
+        $historique = $paiements->map(function ($paiement) {
+            return [
+                'id' => $paiement->id,
+                'reference' => $paiement->reference,
+                'montant' => $paiement->montant,
+                'date_paiement' => $paiement->date_paiement->format('d/m/Y'),
+                'mois' => $paiement->libelle,
             ];
-        }
+        });
 
         return response()->json([
             'success' => true,
-            'data' => $historique
+            'data' => $historique,
         ]);
     }
 
-    /**
-     * 5. Générer une référence unique
-     */
+    private function formatEleve(Inscription $inscription): array
+    {
+        return [
+            'id' => $inscription->eleve->id,
+            'nom' => $inscription->eleve->nom,
+            'prenom' => $inscription->eleve->prenom,
+            'matricule' => $inscription->eleve->matricule,
+            'classe' => $inscription->classe->nom_classe,
+            'niveau' => $inscription->classe->niveau->nom_niveau,
+        ];
+    }
+
+    private function genererMoisAnneeScolaire(Inscription $inscription): array
+    {
+        $dateDebut = Carbon::parse($inscription->anneeScolaire->date_debut)->startOfMonth();
+        $dateFin = Carbon::parse($inscription->anneeScolaire->date_fin)->startOfMonth();
+        $mois = [];
+
+        while ($dateDebut <= $dateFin) {
+            $mois[] = [
+                'mois' => $dateDebut->month,
+                'annee' => $dateDebut->year,
+            ];
+
+            $dateDebut->addMonth();
+        }
+
+        return $mois;
+    }
+
+    private function getMontantMensuel(Inscription $inscription): float
+    {
+        $libelle = match ($inscription->classe->niveau->cycle) {
+            'primaire' => 'Scolarité - Primaire',
+            'college' => 'Scolarité - Collège',
+            'lycee' => 'Scolarité - Lycée',
+            default => 'Scolarité',
+        };
+
+        $fraisApplique = $inscription->fraisAppliques()
+            ->whereHas('typeFrais', function ($query) use ($libelle) {
+                $query->where('libelle', $libelle);
+            })
+            ->first();
+
+        if (!$fraisApplique) {
+            return 0;
+        }
+
+        $nbMois = max(count($this->genererMoisAnneeScolaire($inscription)), 1);
+
+        return round(((float) $fraisApplique->montant) / $nbMois, 2);
+    }
+
+    private function getTypeFraisScolariteId(Inscription $inscription): ?int
+    {
+        $libelle = match ($inscription->classe->niveau->cycle) {
+            'primaire' => 'Scolarité - Primaire',
+            'college' => 'Scolarité - Collège',
+            'lycee' => 'Scolarité - Lycée',
+            default => 'Scolarité',
+        };
+
+        return $inscription->fraisAppliques()
+            ->whereHas('typeFrais', function ($query) use ($libelle) {
+                $query->where('libelle', $libelle);
+            })
+            ->value('id_frais');
+    }
+
+    private function mettreAJourResume(?ResumePaiement $resume): void
+    {
+        if (!$resume) {
+            return;
+        }
+
+        $totalPaye = (float) Paiement::where('inscription_id', $resume->inscription_id)->sum('montant');
+
+        $resume->update([
+            'total_paye' => $totalPaye,
+            'total_restant' => max((float) $resume->total_du - $totalPaye, 0),
+        ]);
+    }
+
     private function genererReference(): string
     {
         $lastId = Paiement::max('id') ?? 0;
         $numero = str_pad($lastId + 1, 6, '0', STR_PAD_LEFT);
+
         return 'PAY-' . date('Y') . '-' . $numero;
+    }
+
+    private function getUtilisateurId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        return $user ? (int) $user->getKey() : null;
+    }
+
+    private function libelleMois(int $mois, int $annee): string
+    {
+        return Carbon::create($annee, $mois, 1)->translatedFormat('F Y');
+    }
+
+    private function extraireMoisDemandes(Request $request, ResumePaiement $resume)
+    {
+        if (is_array($request->mois) && !empty($request->mois)) {
+            return collect($request->mois)
+                ->map(fn ($periode) => [
+                    'mois' => (int) $periode['mois'],
+                    'annee' => (int) $periode['annee'],
+                ])
+                ->unique(fn ($periode) => $periode['annee'] . '-' . $periode['mois'])
+                ->values();
+        }
+
+        if (is_array($request->paiements_mensuels_ids) && !empty($request->paiements_mensuels_ids)) {
+            return PaiementMensuel::where('resume_id', $resume->id)
+                ->whereIn('id', $request->paiements_mensuels_ids)
+                ->get(['mois', 'annee'])
+                ->map(fn ($periode) => [
+                    'mois' => (int) $periode['mois'],
+                    'annee' => (int) $periode['annee'],
+                ])
+                ->unique(fn ($periode) => $periode['annee'] . '-' . $periode['mois'])
+                ->values();
+        }
+
+        return collect([]);
     }
 }

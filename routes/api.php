@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Route;
 | IMPORTS CONTROLLERS
 |--------------------------------------------------------------------------
 */
-
+//Dashboard
+use App\Http\Controllers\Dashboard\CaissierController;
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -64,6 +65,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth utilisateur
     Route::get('/user', [LoginController::class, 'user']);
     Route::post('/logout', [LoginController::class, 'logout']);
+
+    // Dashboard caissier
+    Route::get('/caissier/dashboard', [CaissierController::class, 'index']);
 
     /*
     |--------------------------------------------------------------------------
@@ -218,13 +222,13 @@ Route::prefix('setup')->group(function () {
 Route::prefix('reinscriptions')->middleware(['auth:sanctum'])->group(function () {
     // Recherche par MATRICULE (le plus important)
     Route::get('/rechercher', [ReinscriptionController::class, 'rechercherParMatricule']);
-    
+
     // CRUD
     Route::get('/', [ReinscriptionController::class, 'index']);
     Route::post('/', [ReinscriptionController::class, 'store']);
     Route::get('/{id}', [ReinscriptionController::class, 'show']);
     Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
-    
+
     // Actions
     Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
 });

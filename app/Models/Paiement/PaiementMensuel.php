@@ -33,6 +33,6 @@ class PaiementMensuel extends Model
 
     public function getEstPayeAttribute(): bool
     {
-        return !is_null($this->paiement_id);
+        return ! is_null($this->paiement_id);
     }
 }

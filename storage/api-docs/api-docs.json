@@ -12,6 +12,500 @@
         }
     ],
     "paths": {
+        "/api/admin/utilisateurs": {
+            "get": {
+                "tags": [
+                    "Admin - Utilisateurs"
+                ],
+                "summary": "Lister les utilisateurs",
+                "description": "Retourne la liste des utilisateurs. Accessible uniquement a un admin authentifie via Sanctum.",
+                "operationId": "3da1d27d20f60330e6003575bef863a4",
+                "responses": {
+                    "200": {
+                        "description": "Liste des utilisateurs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "nom": {
+                                                        "type": "string",
+                                                        "example": "Rakoto"
+                                                    },
+                                                    "prenom": {
+                                                        "type": "string",
+                                                        "example": "Jean"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "example": "admin@gmail.com"
+                                                    },
+                                                    "telephone": {
+                                                        "type": "string",
+                                                        "example": "0340011223",
+                                                        "nullable": true
+                                                    },
+                                                    "role": {
+                                                        "type": "string",
+                                                        "example": "admin"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "actif"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "count": {
+                                            "type": "integer",
+                                            "example": 2
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/staffs": {
+            "get": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Lister les staffs",
+                "description": "Liste paginee des staffs avec filtres optionnels. Accessible uniquement a un admin.",
+                "operationId": "e14b9d13581cbd65fa810c55b16c9b9f",
+                "parameters": [
+                    {
+                        "name": "fonction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Surveillant"
+                        }
+                    },
+                    {
+                        "name": "sexe",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "masculin",
+                            "enum": [
+                                "masculin",
+                                "feminin"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Jean"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Liste des staffs"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Creer un staff",
+                "description": "Ajoute un nouveau membre du staff. Accessible uniquement a un admin.",
+                "operationId": "4437ae67bbec8272a7b41658835130a2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nom",
+                                    "prenom",
+                                    "telephone",
+                                    "matricule",
+                                    "email",
+                                    "fonction",
+                                    "salaire",
+                                    "adresse",
+                                    "sexe",
+                                    "date_naissance",
+                                    "lieu_naissance"
+                                ],
+                                "properties": {
+                                    "nom": {
+                                        "type": "string",
+                                        "example": "Rabe"
+                                    },
+                                    "prenom": {
+                                        "type": "string",
+                                        "example": "Marie"
+                                    },
+                                    "telephone": {
+                                        "type": "string",
+                                        "example": "0340011223"
+                                    },
+                                    "matricule": {
+                                        "type": "string",
+                                        "example": "STF-0001"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "marie.rabe@ecole.local"
+                                    },
+                                    "fonction": {
+                                        "type": "string",
+                                        "example": "Secretaire"
+                                    },
+                                    "salaire": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 450000
+                                    },
+                                    "adresse": {
+                                        "type": "string",
+                                        "example": "Lot II A 45 Antananarivo"
+                                    },
+                                    "sexe": {
+                                        "type": "string",
+                                        "example": "feminin",
+                                        "enum": [
+                                            "masculin",
+                                            "feminin"
+                                        ]
+                                    },
+                                    "date_naissance": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1995-08-12"
+                                    },
+                                    "lieu_naissance": {
+                                        "type": "string",
+                                        "example": "Antsirabe"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Staff cree avec succes"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/staffs/statistiques": {
+            "get": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Consulter les statistiques des staffs",
+                "description": "Retourne les statistiques globales des staffs. Accessible uniquement a un admin.",
+                "operationId": "7768fd7f266d316a4ecc08fd748d93ea",
+                "responses": {
+                    "200": {
+                        "description": "Statistiques des staffs"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/staffs/export": {
+            "get": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Exporter la liste des staffs",
+                "description": "Retourne la liste exportable des staffs. Accessible uniquement a un admin.",
+                "operationId": "544206730aefca61bea4a3e1834c43a3",
+                "parameters": [
+                    {
+                        "name": "fonction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Secretaire"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Export des staffs"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/staffs/{id}": {
+            "get": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Afficher un staff",
+                "description": "Retourne le detail d un staff. Accessible uniquement a un admin.",
+                "operationId": "ed9cc2a0ff45c70b03228efe264dd4f2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail du staff"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    },
+                    "404": {
+                        "description": "Staff non trouve"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Modifier un staff",
+                "description": "Met a jour un staff existant. Accessible uniquement a un admin.",
+                "operationId": "6cf374224ede2167c84af4ea22531966",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "nom": {
+                                        "type": "string",
+                                        "example": "Rabe"
+                                    },
+                                    "prenom": {
+                                        "type": "string",
+                                        "example": "Marie"
+                                    },
+                                    "telephone": {
+                                        "type": "string",
+                                        "example": "0340011223"
+                                    },
+                                    "matricule": {
+                                        "type": "string",
+                                        "example": "STF-0001"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "marie.rabe@ecole.local"
+                                    },
+                                    "fonction": {
+                                        "type": "string",
+                                        "example": "Comptable"
+                                    },
+                                    "salaire": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500000
+                                    },
+                                    "adresse": {
+                                        "type": "string",
+                                        "example": "Lot II A 45 Antananarivo"
+                                    },
+                                    "sexe": {
+                                        "type": "string",
+                                        "example": "feminin",
+                                        "enum": [
+                                            "masculin",
+                                            "feminin"
+                                        ]
+                                    },
+                                    "date_naissance": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1995-08-12"
+                                    },
+                                    "lieu_naissance": {
+                                        "type": "string",
+                                        "example": "Antsirabe"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Staff modifie avec succes"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    },
+                    "404": {
+                        "description": "Staff non trouve"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin - Staffs"
+                ],
+                "summary": "Supprimer un staff",
+                "description": "Supprime un staff existant. Accessible uniquement a un admin.",
+                "operationId": "7517d7b517094b67f182afdb782ae9bd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Staff supprime avec succes"
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    },
+                    "404": {
+                        "description": "Staff non trouve"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
@@ -122,7 +616,7 @@
                     "Auth"
                 ],
                 "summary": "Inscription utilisateur",
-                "description": "Creer un nouvel utilisateur",
+                "description": "Creer un nouvel utilisateur. Accessible uniquement a un admin authentifie via Sanctum.",
                 "operationId": "5e9dd82c858753ad481f146678e34951",
                 "requestBody": {
                     "required": true,
@@ -134,7 +628,8 @@
                                     "prenom",
                                     "email",
                                     "password",
-                                    "password_confirmation"
+                                    "password_confirmation",
+                                    "role"
                                 ],
                                 "properties": {
                                     "nom": {
@@ -155,6 +650,14 @@
                                     },
                                     "password_confirmation": {
                                         "type": "string"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "caissier",
+                                        "enum": [
+                                            "admin",
+                                            "caissier"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -181,10 +684,21 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    },
                     "422": {
                         "description": "Erreur validation"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/user": {
@@ -4216,6 +4730,14 @@
         }
     },
     "tags": [
+        {
+            "name": "Admin - Utilisateurs",
+            "description": "Admin - Utilisateurs"
+        },
+        {
+            "name": "Admin - Staffs",
+            "description": "Admin - Staffs"
+        },
         {
             "name": "Auth",
             "description": "Auth"

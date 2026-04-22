@@ -50,6 +50,11 @@ class Utilisateur extends Authenticatable
         return $this->role === 'caissier';
     }
 
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role, $roles, true);
+    }
+
     public function isActif()
     {
         return $this->status === 'actif';

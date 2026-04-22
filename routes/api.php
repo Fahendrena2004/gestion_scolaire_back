@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +12,8 @@ use App\Http\Controllers\Dashboard\CaissierController;
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\UtilisateurController;
 use App\Http\Controllers\Inscription\ReinscriptionController;
 
 // SETUP
@@ -71,143 +72,147 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | INSCRIPTION
+    | ADMIN UNIQUEMENT
     |--------------------------------------------------------------------------
     */
-    Route::prefix('inscription')->group(function () {
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/register', [RegisterController::class, 'register']);
+        Route::get('/admin/utilisateurs', [UtilisateurController::class, 'index']);
 
-        // Cycles
-        Route::get('/cycles', [CycleController::class, 'index']);
-
-        // Années scolaires
-        Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
-        Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
-        Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
-        Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show']);
-        Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update']);
-        Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy']);
-
-        // Niveaux
-        Route::get('/niveaux', [NiveauController::class, 'index']);
-        Route::get('/niveaux/{cycle}', [NiveauController::class, 'getByCycle']);
-        Route::post('/niveaux', [NiveauController::class, 'store']);
-        Route::get('/niveaux/{id}', [NiveauController::class, 'show']);
-        Route::put('/niveaux/{id}', [NiveauController::class, 'update']);
-        Route::delete('/niveaux/{id}', [NiveauController::class, 'destroy']);
-
-        // Classes
-        Route::get('/classes', [ClasseController::class, 'index']);
-        Route::get('/classes/niveau/{niveauId}', [ClasseController::class, 'getByNiveau']);
-        Route::get('/classes/cycle/{cycle}', [ClasseController::class, 'getByCycle']);
-        Route::post('/classes', [ClasseController::class, 'store']);
-        Route::get('/classes/{id}', [ClasseController::class, 'show']);
-        Route::put('/classes/{id}', [ClasseController::class, 'update']);
-        Route::delete('/classes/{id}', [ClasseController::class, 'destroy']);
-
-        // Types de frais
-        Route::get('/frais/types', [TypeFraisController::class, 'index']);
-        Route::post('/frais/types', [TypeFraisController::class, 'store']);
-        Route::put('/frais/types/{id}', [TypeFraisController::class, 'update']);
-        Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy']);
-
-        // Calcul frais
-        Route::get('/frais/calcul', [FraisController::class, 'calcul']);
-
-        // Inscription élève
-        Route::get('/', [InscriptionController::class, 'index']);
-        Route::post('/', [InscriptionController::class, 'store']);
-        Route::get('/{id}', [InscriptionController::class, 'show']);
-        Route::get('/{id}/infos-dynamiques', [InscriptionController::class, 'getDynamicInfos']);
-
-        // Paiements inscription
-        Route::get('/{inscriptionId}/paiements', [PaiementController::class, 'index']);
-        Route::post('/{inscriptionId}/paiements', [PaiementController::class, 'store']);
-        Route::get('/paiements/{id}', [PaiementController::class, 'show']);
-        Route::delete('/paiements/{id}', [PaiementController::class, 'destroy']);
+        Route::prefix('admin/staffs')->group(function () {
+            Route::get('/', [StaffController::class, 'index']);
+            Route::post('/', [StaffController::class, 'store']);
+            Route::get('/statistiques', [StaffController::class, 'statistiques']);
+            Route::get('/export', [StaffController::class, 'export']);
+            Route::get('/{id}', [StaffController::class, 'show']);
+            Route::put('/{id}', [StaffController::class, 'update']);
+            Route::delete('/{id}', [StaffController::class, 'destroy']);
+        });
     });
 
     /*
     |--------------------------------------------------------------------------
-    | GESTION DES NOTES
+    | ADMIN ET CAISSIER
     |--------------------------------------------------------------------------
     */
+    Route::middleware('role:admin,caissier')->group(function () {
+        Route::prefix('inscription')->group(function () {
+            Route::get('/cycles', [CycleController::class, 'index']);
 
-    Route::prefix('matieres')->group(function () {
-        Route::get('/', [MatieresController::class, 'index']);
-        Route::post('/', [MatieresController::class, 'store']);
-        Route::post('/multiple', [MatieresController::class, 'storeMultiple']);
-        Route::get('/{id}', [MatieresController::class, 'show']);
-        Route::put('/{id}', [MatieresController::class, 'update']);
-        Route::delete('/{id}', [MatieresController::class, 'destroy']);
-        Route::get('/suggestions/{cycle}', [MatieresController::class, 'suggestions']);
-    });
+            Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
+            Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
+            Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
+            Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show']);
+            Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update']);
+            Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy']);
 
-    Route::prefix('notes')->group(function () {
-        Route::get('/', [NotesController::class, 'index']);
-        Route::post('/', [NotesController::class, 'store']);
-        Route::get('/moyenne/{inscriptionId}/{periode}', [NotesController::class, 'getMoyenne']);
-        Route::get('/{id}', [NotesController::class, 'show']);
-        Route::put('/{id}', [NotesController::class, 'update']);
-        Route::delete('/{id}', [NotesController::class, 'destroy']);
-    });
+            Route::get('/niveaux', [NiveauController::class, 'index']);
+            Route::get('/niveaux/{cycle}', [NiveauController::class, 'getByCycle']);
+            Route::post('/niveaux', [NiveauController::class, 'store']);
+            Route::get('/niveaux/{id}', [NiveauController::class, 'show']);
+            Route::put('/niveaux/{id}', [NiveauController::class, 'update']);
+            Route::delete('/niveaux/{id}', [NiveauController::class, 'destroy']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | BULLETINS
-    |--------------------------------------------------------------------------
-    */
+            Route::get('/classes', [ClasseController::class, 'index']);
+            Route::get('/classes/niveau/{niveauId}', [ClasseController::class, 'getByNiveau']);
+            Route::get('/classes/cycle/{cycle}', [ClasseController::class, 'getByCycle']);
+            Route::post('/classes', [ClasseController::class, 'store']);
+            Route::get('/classes/{id}', [ClasseController::class, 'show']);
+            Route::put('/classes/{id}', [ClasseController::class, 'update']);
+            Route::delete('/classes/{id}', [ClasseController::class, 'destroy']);
 
-    Route::prefix('bulletins')->group(function () {
-        Route::post('/generate', [BulletinController::class, 'generate']);
-        Route::post('/generate-class', [BulletinController::class, 'generateForClass']);
-        Route::get('/eleve/{inscriptionId}', [BulletinController::class, 'getByEleve']);
-        Route::get('/classe', [BulletinController::class, 'getByClass']);
-        Route::get('/{id}', [BulletinController::class, 'show']);
-        Route::put('/{id}/appreciation', [BulletinController::class, 'updateAppreciation']);
-        Route::delete('/{id}', [BulletinController::class, 'destroy']);
-        Route::get('/{id}/pdf', [BulletinController::class, 'exportPDF']);
-    });
+            Route::get('/frais/types', [TypeFraisController::class, 'index']);
+            Route::post('/frais/types', [TypeFraisController::class, 'store']);
+            Route::put('/frais/types/{id}', [TypeFraisController::class, 'update']);
+            Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy']);
 
-    Route::prefix('detail-bulletins')->group(function () {
-        Route::get('/bulletin/{bulletinId}', [DetailBulletinController::class, 'getByBulletin']);
-        Route::put('/{id}', [DetailBulletinController::class, 'update']);
-    });
+            Route::get('/frais/calcul', [FraisController::class, 'calcul']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | PAIEMENTS
-    |--------------------------------------------------------------------------
-    */
+            Route::get('/', [InscriptionController::class, 'index']);
+            Route::post('/', [InscriptionController::class, 'store']);
+            Route::get('/{id}', [InscriptionController::class, 'show']);
+            Route::get('/{id}/infos-dynamiques', [InscriptionController::class, 'getDynamicInfos']);
 
-    Route::prefix('cantine')->group(function () {
-        Route::get('/filtres', [FiltrationPaiement::class, 'getFiltres']);
-        Route::get('/eleves', [FiltrationPaiement::class, 'filtrerEleves']);
-        Route::post('/presence', [CantineController::class, 'marquerPresence']);
-        Route::get('/mois-disponibles/{inscriptionId}', [CantineController::class, 'getMoisDisponibles']);
-        Route::get('/jours/{inscriptionId}', [CantineController::class, 'getJours']);
-        Route::post('/payer', [CantineController::class, 'payerJours']);
-    });
+            Route::get('/{inscriptionId}/paiements', [PaiementController::class, 'index']);
+            Route::post('/{inscriptionId}/paiements', [PaiementController::class, 'store']);
+            Route::get('/paiements/{id}', [PaiementController::class, 'show']);
+            Route::delete('/paiements/{id}', [PaiementController::class, 'destroy']);
+        });
 
-    Route::prefix('autres-frais')->group(function () {
-        Route::get('/{inscriptionId}', [AutresFraisController::class, 'getFraisAPayer']);
-        Route::post('/payer', [AutresFraisController::class, 'payer']);
-    });
+        Route::prefix('matieres')->group(function () {
+            Route::get('/', [MatieresController::class, 'index']);
+            Route::post('/', [MatieresController::class, 'store']);
+            Route::post('/multiple', [MatieresController::class, 'storeMultiple']);
+            Route::get('/{id}', [MatieresController::class, 'show']);
+            Route::put('/{id}', [MatieresController::class, 'update']);
+            Route::delete('/{id}', [MatieresController::class, 'destroy']);
+            Route::get('/suggestions/{cycle}', [MatieresController::class, 'suggestions']);
+        });
 
-    Route::prefix('scolarite')->group(function () {
-        Route::get('/mois/{inscriptionId}', [ScolariteController::class, 'getMoisAPayer']);
-        Route::post('/payer', [ScolariteController::class, 'payerMois']);
-        Route::post('/payer-tout/{inscriptionId}', [ScolariteController::class, 'payerTout']);
-        Route::get('/historique/{inscriptionId}', [ScolariteController::class, 'getHistorique']);
+        Route::prefix('notes')->group(function () {
+            Route::get('/', [NotesController::class, 'index']);
+            Route::post('/', [NotesController::class, 'store']);
+            Route::get('/moyenne/{inscriptionId}/{periode}', [NotesController::class, 'getMoyenne']);
+            Route::get('/{id}', [NotesController::class, 'show']);
+            Route::put('/{id}', [NotesController::class, 'update']);
+            Route::delete('/{id}', [NotesController::class, 'destroy']);
+        });
+
+        Route::prefix('bulletins')->group(function () {
+            Route::post('/generate', [BulletinController::class, 'generate']);
+            Route::post('/generate-class', [BulletinController::class, 'generateForClass']);
+            Route::get('/eleve/{inscriptionId}', [BulletinController::class, 'getByEleve']);
+            Route::get('/classe', [BulletinController::class, 'getByClass']);
+            Route::get('/{id}', [BulletinController::class, 'show']);
+            Route::put('/{id}/appreciation', [BulletinController::class, 'updateAppreciation']);
+            Route::delete('/{id}', [BulletinController::class, 'destroy']);
+            Route::get('/{id}/pdf', [BulletinController::class, 'exportPDF']);
+        });
+
+        Route::prefix('detail-bulletins')->group(function () {
+            Route::get('/bulletin/{bulletinId}', [DetailBulletinController::class, 'getByBulletin']);
+            Route::put('/{id}', [DetailBulletinController::class, 'update']);
+        });
+
+        Route::prefix('cantine')->group(function () {
+            Route::get('/filtres', [FiltrationPaiement::class, 'getFiltres']);
+            Route::get('/eleves', [FiltrationPaiement::class, 'filtrerEleves']);
+            Route::post('/presence', [CantineController::class, 'marquerPresence']);
+            Route::get('/mois-disponibles/{inscriptionId}', [CantineController::class, 'getMoisDisponibles']);
+            Route::get('/jours/{inscriptionId}', [CantineController::class, 'getJours']);
+            Route::post('/payer', [CantineController::class, 'payerJours']);
+        });
+
+        Route::prefix('autres-frais')->group(function () {
+            Route::get('/{inscriptionId}', [AutresFraisController::class, 'getFraisAPayer']);
+            Route::post('/payer', [AutresFraisController::class, 'payer']);
+        });
+
+        Route::prefix('scolarite')->group(function () {
+            Route::get('/mois/{inscriptionId}', [ScolariteController::class, 'getMoisAPayer']);
+            Route::post('/payer', [ScolariteController::class, 'payerMois']);
+            Route::post('/payer-tout/{inscriptionId}', [ScolariteController::class, 'payerTout']);
+            Route::get('/historique/{inscriptionId}', [ScolariteController::class, 'getHistorique']);
+        });
+
+        Route::prefix('reinscriptions')->group(function () {
+            Route::get('/rechercher', [ReinscriptionController::class, 'rechercherParMatricule']);
+            Route::get('/', [ReinscriptionController::class, 'index']);
+            Route::post('/', [ReinscriptionController::class, 'store']);
+            Route::get('/{id}', [ReinscriptionController::class, 'show']);
+            Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
+            Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
+        });
     });
 });
 
 /*
 |--------------------------------------------------------------------------
-| SETUP (optionnel: protéger ou non)
+| SETUP
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('setup')->group(function () {
+Route::prefix('setup')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('/annee-scolaire', [InstallController::class, 'createAnneeScolaire']);
     Route::post('/niveaux', [InstallController::class, 'createNiveaux']);
     Route::post('/classes', [InstallController::class, 'generateClasses']);
@@ -216,9 +221,6 @@ Route::prefix('setup')->group(function () {
     Route::post('/reset', [InstallController::class, 'reset']);
 });
 
-
-// ROUTES POUR LA RÉINSCRIPTION
-// ==============================================
 Route::prefix('reinscriptions')->middleware(['auth:sanctum'])->group(function () {
     // Recherche par MATRICULE (le plus important)
     Route::get('/rechercher', [ReinscriptionController::class, 'rechercherParMatricule']);

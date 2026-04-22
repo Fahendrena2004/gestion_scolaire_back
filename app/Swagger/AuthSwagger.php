@@ -57,11 +57,12 @@ class AuthSwagger
         path: '/api/register',
         tags: ['Auth'],
         summary: 'Inscription utilisateur',
-        description: 'Creer un nouvel utilisateur',
+        description: 'Creer un nouvel utilisateur. Accessible uniquement a un admin authentifie via Sanctum.',
+        security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['nom', 'prenom', 'email', 'password', 'password_confirmation'],
+                required: ['nom', 'prenom', 'email', 'password', 'password_confirmation', 'role'],
                 properties: [
                     new OA\Property(property: 'nom', type: 'string'),
                     new OA\Property(property: 'prenom', type: 'string'),
@@ -69,6 +70,7 @@ class AuthSwagger
                     new OA\Property(property: 'email', type: 'string'),
                     new OA\Property(property: 'password', type: 'string'),
                     new OA\Property(property: 'password_confirmation', type: 'string'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'caissier'], example: 'caissier'),
                 ]
             )
         ),
@@ -83,6 +85,8 @@ class AuthSwagger
                     ]
                 )
             ),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin'),
             new OA\Response(response: 422, description: 'Erreur validation'),
         ]
     )]

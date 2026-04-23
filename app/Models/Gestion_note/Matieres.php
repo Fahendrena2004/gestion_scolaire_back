@@ -3,6 +3,7 @@
 namespace App\Models\Gestion_note;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Inscription\Classe;
 
 class Matieres extends Model
 {
@@ -12,5 +13,11 @@ class Matieres extends Model
     protected $fillable = [
         'nom',
         'coefficient',
+        'classe_id',
     ];
+
+    public function classe()
+    {
+        return $this->belongsTo(Classe::class, 'classe_id');
+    }
 }

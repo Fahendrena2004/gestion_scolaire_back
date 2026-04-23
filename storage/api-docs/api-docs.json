@@ -947,7 +947,7 @@
                 "tags": [
                     "Frais"
                 ],
-                "summary": "Calculer les frais",
+                "summary": "Calculer les frais de l annee scolaire",
                 "operationId": "1140abbd31df2c70694a4e00dbb81fca",
                 "parameters": [
                     {
@@ -957,6 +957,15 @@
                         "schema": {
                             "type": "string",
                             "example": "college"
+                        }
+                    },
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
                         }
                     },
                     {
@@ -1013,7 +1022,7 @@
                     "Inscription"
                 ],
                 "summary": "Soumettre une inscription",
-                "description": "Enregistre une inscription puis cree seulement resume_paiements. Les mois de scolarite sont generes dynamiquement au moment de l affichage et stockes dans paiements_mensuels uniquement lorsqu ils sont payes.",
+                "description": "L inscription utilise les frais configures pour l annee scolaire en cours, avec fallback sur les frais globaux si besoin.",
                 "operationId": "4d2845a261a77b4604b5efc0d94c9dad",
                 "requestBody": {
                     "required": true,
@@ -2088,59 +2097,6 @@
                         "bearerAuth": []
                     }
                 ]
-            },
-            "delete": {
-                "tags": [
-                    "Bulletins"
-                ],
-                "summary": "Supprimer un bulletin",
-                "description": "Supprime un bulletin et ses détails",
-                "operationId": "9bd3b6c843d3265aea6294157cd500bf",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ID du bulletin",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Bulletin supprimé",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Bulletin supprimé avec succès"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Bulletin non trouvé"
-                    },
-                    "500": {
-                        "description": "Erreur serveur"
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
             }
         },
         "/api/bulletins/{id}/appreciation": {
@@ -2877,7 +2833,7 @@
                     "Reinscription"
                 ],
                 "summary": "Rechercher un eleve par matricule pour la reinscription",
-                "description": "Retourne les informations de l eleve, sa derniere inscription, une classe superieure proposee et le statut de reinscription pour l annee scolaire demandee.",
+                "description": "Retourne les informations de l eleve, sa derniere inscription, sa classe actuelle, une classe superieure proposee et le statut de reinscription pour l annee scolaire demandee.",
                 "operationId": "627a0ed43b448e493b394e05e0307465",
                 "parameters": [
                     {
@@ -2961,6 +2917,11 @@
                                                     "example": "6eme A",
                                                     "nullable": true
                                                 },
+                                                "classe_id": {
+                                                    "type": "integer",
+                                                    "example": 12,
+                                                    "nullable": true
+                                                },
                                                 "montant_total": {
                                                     "type": "number",
                                                     "format": "float",
@@ -2971,6 +2932,29 @@
                                                     "type": "string",
                                                     "format": "date",
                                                     "example": "2025-09-03",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object",
+                                            "nullable": true
+                                        },
+                                        "classe_actuelle": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "6eme A"
+                                                },
+                                                "niveau_id": {
+                                                    "type": "integer",
+                                                    "example": 6
+                                                },
+                                                "niveau": {
+                                                    "type": "string",
+                                                    "example": "6eme",
                                                     "nullable": true
                                                 }
                                             },
@@ -3042,6 +3026,19 @@
                         }
                     },
                     {
+                        "name": "statut",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Passant",
+                            "enum": [
+                                "Passant",
+                                "Redoublant"
+                            ]
+                        }
+                    },
+                    {
                         "name": "matricule",
                         "in": "query",
                         "required": false,
@@ -3070,6 +3067,7 @@
                     "Reinscription"
                 ],
                 "summary": "Creer une reinscription",
+                "description": "La reinscription cree egalement une nouvelle inscription pour la nouvelle annee scolaire. Les notes, paiements, frais appliques et resume de paiement se gerent ensuite via nouvelle_inscription_id comme une inscription normale.",
                 "operationId": "f55f2c720528d1a0381218f0bd25ee27",
                 "requestBody": {
                     "required": true,
@@ -3081,7 +3079,7 @@
                                     "inscription_id",
                                     "annee_scolaire_id",
                                     "classe_id",
-                                    "montant_reinscription",
+                                    "statut",
                                     "date_reinscription"
                                 ],
                                 "properties": {
@@ -3101,21 +3099,28 @@
                                         "type": "integer",
                                         "example": 14
                                     },
-                                    "montant_reinscription": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 150000
+                                    "statut": {
+                                        "type": "string",
+                                        "example": "Passant",
+                                        "enum": [
+                                            "Passant",
+                                            "Redoublant"
+                                        ]
                                     },
                                     "parascolaire": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 0,
+                                        "type": "boolean",
+                                        "example": true,
                                         "nullable": true
                                     },
                                     "cantine": {
+                                        "type": "boolean",
+                                        "example": false,
+                                        "nullable": true
+                                    },
+                                    "montant_verse": {
                                         "type": "number",
                                         "format": "float",
-                                        "example": 0,
+                                        "example": 150000,
                                         "nullable": true
                                     },
                                     "date_reinscription": {
@@ -3475,6 +3480,82 @@
                                     "statut": {
                                         "type": "string",
                                         "example": "en_cours"
+                                    },
+                                    "classes": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "effectif": {
+                                                    "type": "integer",
+                                                    "example": 35
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "calendrier": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "examen",
+                                                    "enum": [
+                                                        "examen",
+                                                        "vacance",
+                                                        "autre"
+                                                    ]
+                                                },
+                                                "titre": {
+                                                    "type": "string",
+                                                    "example": "Examen du premier trimestre"
+                                                },
+                                                "date_debut": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-12-10"
+                                                },
+                                                "date_fin": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-12-12"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Examen commun",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "frais": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "libelle": {
+                                                    "type": "string",
+                                                    "example": "Inscription"
+                                                },
+                                                "montant": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 75000
+                                                },
+                                                "est_obligatoire": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -3582,6 +3663,87 @@
                                     "statut": {
                                         "type": "string",
                                         "example": "planifie"
+                                    },
+                                    "classes": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "effectif": {
+                                                    "type": "integer",
+                                                    "example": 38
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "calendrier": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "example": "vacance",
+                                                    "enum": [
+                                                        "examen",
+                                                        "vacance",
+                                                        "autre"
+                                                    ]
+                                                },
+                                                "titre": {
+                                                    "type": "string",
+                                                    "example": "Petite vacance"
+                                                },
+                                                "date_debut": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-11-02"
+                                                },
+                                                "date_fin": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-11-06"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "Pause de petite vacance",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "frais": {
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1,
+                                                    "nullable": true
+                                                },
+                                                "libelle": {
+                                                    "type": "string",
+                                                    "example": "Cantine"
+                                                },
+                                                "montant": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 80000
+                                                },
+                                                "est_obligatoire": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -4018,6 +4180,17 @@
                 ],
                 "summary": "Lister les types de frais",
                 "operationId": "56582372c95882b6de5b710e6673fd8a",
+                "parameters": [
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Liste des types de frais"
@@ -4041,11 +4214,16 @@
                         "application/json": {
                             "schema": {
                                 "required": [
+                                    "annee_scolaire_id",
                                     "libelle",
                                     "montant",
                                     "est_obligatoire"
                                 ],
                                 "properties": {
+                                    "annee_scolaire_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
                                     "libelle": {
                                         "type": "string",
                                         "example": "Cantine"
@@ -4101,6 +4279,10 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "annee_scolaire_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
                                     "libelle": {
                                         "type": "string"
                                     },
@@ -4346,6 +4528,35 @@
                 ],
                 "summary": "Lister les matieres",
                 "operationId": "6fdc8d8f6ef4fea89a36e009e8d582e5",
+                "parameters": [
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    },
+                    {
+                        "name": "niveau_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 6
+                        }
+                    },
+                    {
+                        "name": "cycle",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "college"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Liste des matieres"
@@ -4370,7 +4581,8 @@
                             "schema": {
                                 "required": [
                                     "nom",
-                                    "coefficient"
+                                    "coefficient",
+                                    "classe_id"
                                 ],
                                 "properties": {
                                     "nom": {
@@ -4380,6 +4592,10 @@
                                     "coefficient": {
                                         "type": "integer",
                                         "example": 4
+                                    },
+                                    "classe_id": {
+                                        "type": "integer",
+                                        "example": 12
                                     }
                                 },
                                 "type": "object"
@@ -4426,6 +4642,10 @@
                                                 "coefficient": {
                                                     "type": "integer",
                                                     "example": 4
+                                                },
+                                                "classe_id": {
+                                                    "type": "integer",
+                                                    "example": 12
                                                 }
                                             },
                                             "type": "object"
@@ -4508,6 +4728,9 @@
                                         "type": "string"
                                     },
                                     "coefficient": {
+                                        "type": "integer"
+                                    },
+                                    "classe_id": {
                                         "type": "integer"
                                     }
                                 },

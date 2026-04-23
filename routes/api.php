@@ -79,6 +79,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/register', [RegisterController::class, 'register']);
         Route::get('/admin/utilisateurs', [UtilisateurController::class, 'index']);
 
+        Route::prefix('inscription')->group(function () {
+            Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
+            Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
+            Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
+            Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show']);
+            Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update']);
+            Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy']);
+
+            Route::get('/frais/types', [TypeFraisController::class, 'index']);
+            Route::post('/frais/types', [TypeFraisController::class, 'store']);
+            Route::put('/frais/types/{id}', [TypeFraisController::class, 'update']);
+            Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy']);
+        });
+
         Route::prefix('admin/staffs')->group(function () {
             Route::get('/', [StaffController::class, 'index']);
             Route::post('/', [StaffController::class, 'store']);
@@ -99,13 +113,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('inscription')->group(function () {
             Route::get('/cycles', [CycleController::class, 'index']);
 
-            Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
-            Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
-            Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
-            Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show']);
-            Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update']);
-            Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy']);
-
             Route::get('/niveaux', [NiveauController::class, 'index']);
             Route::get('/niveaux/{cycle}', [NiveauController::class, 'getByCycle']);
             Route::post('/niveaux', [NiveauController::class, 'store']);
@@ -120,11 +127,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/classes/{id}', [ClasseController::class, 'show']);
             Route::put('/classes/{id}', [ClasseController::class, 'update']);
             Route::delete('/classes/{id}', [ClasseController::class, 'destroy']);
-
-            Route::get('/frais/types', [TypeFraisController::class, 'index']);
-            Route::post('/frais/types', [TypeFraisController::class, 'store']);
-            Route::put('/frais/types/{id}', [TypeFraisController::class, 'update']);
-            Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy']);
 
             Route::get('/frais/calcul', [FraisController::class, 'calcul']);
 
@@ -219,18 +221,4 @@ Route::prefix('setup')->middleware(['auth:sanctum', 'role:admin'])->group(functi
     Route::post('/frais', [InstallController::class, 'createTypeFrais']);
     Route::get('/status', [InstallController::class, 'getStatus']);
     Route::post('/reset', [InstallController::class, 'reset']);
-});
-
-Route::prefix('reinscriptions')->middleware(['auth:sanctum'])->group(function () {
-    // Recherche par MATRICULE (le plus important)
-    Route::get('/rechercher', [ReinscriptionController::class, 'rechercherParMatricule']);
-
-    // CRUD
-    Route::get('/', [ReinscriptionController::class, 'index']);
-    Route::post('/', [ReinscriptionController::class, 'store']);
-    Route::get('/{id}', [ReinscriptionController::class, 'show']);
-    Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
-
-    // Actions
-    Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
 });

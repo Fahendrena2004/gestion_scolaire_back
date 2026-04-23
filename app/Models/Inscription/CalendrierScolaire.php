@@ -4,20 +4,22 @@ namespace App\Models\Inscription;
 
 use Illuminate\Database\Eloquent\Model;
 
-class TypeFrais extends Model
+class CalendrierScolaire extends Model
 {
-    protected $table = 'type_frais';
+    protected $table = 'calendrier_scolaires';
 
     protected $fillable = [
         'annee_scolaire_id',
-        'libelle',
-        'montant',
-        'est_obligatoire',
+        'type',
+        'titre',
+        'date_debut',
+        'date_fin',
+        'description',
     ];
 
     protected $casts = [
-        'montant' => 'decimal:2',
-        'est_obligatoire' => 'boolean',
+        'date_debut' => 'date',
+        'date_fin' => 'date',
     ];
 
     public function anneeScolaire()

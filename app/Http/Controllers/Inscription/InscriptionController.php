@@ -133,6 +133,7 @@ class InscriptionController extends Controller
             $resume = $this->creerOuMettreAJourResumePaiement($inscription, $montantTotal);
 
             $montantVerse = (float) $request->input('montant_verse', 0);
+
             if ($montantVerse > 0) {
                 $this->enregistrerPaiementInitial($inscription, $resume, $montantVerse, $utilisateurId);
             } else {
@@ -151,6 +152,7 @@ class InscriptionController extends Controller
                     'classe' => $classe->nom_classe,
                     'niveau' => $classe->niveau->nom_niveau,
                     'cycle' => $classe->niveau->cycle,
+                    'annee_scolaire_id' => $anneeActive->id,
                     'montant_total' => $montantTotal,
                     'montant_verse' => $montantVerse,
                     'resume' => $resume->fresh(),
@@ -257,7 +259,7 @@ class InscriptionController extends Controller
 
     private function ajouterFrais(Inscription $inscription, string $libelle, int $multiplicateur = 1): float
     {
-        $typeFrais = TypeFrais::where('libelle', $libelle)->first();
+        $typeFrais = $this->getTypeFrais($libelle, $inscription->id_annee_scolaire);
 
         if (!$typeFrais) {
             return 0;
@@ -349,6 +351,21 @@ class InscriptionController extends Controller
         ]);
     }
 
+    private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
+    {
+        return TypeFrais::where('libelle', $libelle)
+            ->where(function ($query) use ($anneeScolaireId) {
+                if ($anneeScolaireId) {
+                    $query->where('annee_scolaire_id', $anneeScolaireId)
+                        ->orWhereNull('annee_scolaire_id');
+                } else {
+                    $query->whereNull('annee_scolaire_id');
+                }
+            })
+            ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
+            ->first();
+    }
+
     private function getLibelleScolarite(string $cycle): string
     {
         return match ($cycle) {
@@ -357,11 +374,6 @@ class InscriptionController extends Controller
             'lycee' => 'Scolarité - Lycée',
             default => 'Scolarité',
         };
-    }
-
-    private function libelleMois(int $mois, int $annee): string
-    {
-        return Carbon::create($annee, $mois, 1)->translatedFormat('F Y');
     }
 
     private function compterMoisScolaires(AnneeScolaire $anneeScolaire): int

@@ -11,9 +11,7 @@ class InscriptionSwagger
         security: [['bearerAuth' => []]],
         tags: ['Cycles'],
         summary: 'Recuperer tous les cycles',
-        responses: [
-            new OA\Response(response: 200, description: 'Succes')
-        ]
+        responses: [new OA\Response(response: 200, description: 'Succes')]
     )]
     public function cycles() {}
 
@@ -23,7 +21,7 @@ class InscriptionSwagger
         tags: ['Cycles'],
         summary: 'Recuperer les niveaux par cycle',
         parameters: [
-            new OA\Parameter(name: 'cycle', in: 'path', required: true, schema: new OA\Schema(type: 'string', example: 'college'))
+            new OA\Parameter(name: 'cycle', in: 'path', required: true, schema: new OA\Schema(type: 'string', example: 'college')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Succes'),
@@ -38,7 +36,7 @@ class InscriptionSwagger
         tags: ['Cycles'],
         summary: 'Recuperer les classes par niveau',
         parameters: [
-            new OA\Parameter(name: 'niveauId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 6))
+            new OA\Parameter(name: 'niveauId', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 6)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Succes'),
@@ -51,15 +49,14 @@ class InscriptionSwagger
         path: '/api/inscription/frais/calcul',
         security: [['bearerAuth' => []]],
         tags: ['Frais'],
-        summary: 'Calculer les frais',
+        summary: 'Calculer les frais de l annee scolaire',
         parameters: [
             new OA\Parameter(name: 'cycle', in: 'query', required: true, schema: new OA\Schema(type: 'string', example: 'college')),
+            new OA\Parameter(name: 'annee_scolaire_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2)),
             new OA\Parameter(name: 'parascolaire', in: 'query', required: false, schema: new OA\Schema(type: 'boolean', example: true)),
             new OA\Parameter(name: 'cantine', in: 'query', required: false, schema: new OA\Schema(type: 'boolean', example: false)),
         ],
-        responses: [
-            new OA\Response(response: 200, description: 'Succes')
-        ]
+        responses: [new OA\Response(response: 200, description: 'Succes')]
     )]
     public function calculFrais() {}
 
@@ -68,7 +65,7 @@ class InscriptionSwagger
         security: [['bearerAuth' => []]],
         tags: ['Inscription'],
         summary: 'Soumettre une inscription',
-        description: 'Enregistre une inscription puis cree seulement resume_paiements. Les mois de scolarite sont generes dynamiquement au moment de l affichage et stockes dans paiements_mensuels uniquement lorsqu ils sont payes.',
+        description: 'L inscription utilise les frais configures pour l annee scolaire en cours, avec fallback sur les frais globaux si besoin.',
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -104,7 +101,7 @@ class InscriptionSwagger
         tags: ['Inscription'],
         summary: 'Details d une inscription',
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1))
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Succes'),

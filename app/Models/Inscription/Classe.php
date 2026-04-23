@@ -6,13 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Classe extends Model
 {
-    protected $table="classes";
+    protected $table = "classes";
+
     protected $fillable = [
         'nom_classe',
         'niveau_id',
         'code_division',
         'effectif',
-        'anneeScolaire_id'
+        'anneeScolaire_id',
     ];
 
     public function niveau()
@@ -28,5 +29,10 @@ class Classe extends Model
     public function getNomAttribute()
     {
         return $this->nom_classe;
+    }
+
+    public function inscriptions()
+    {
+        return $this->hasMany(Inscription::class, 'id_classe');
     }
 }

@@ -2,12 +2,8 @@
 
 namespace App\Models\Inscription;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Utilisateur;
-use App\Models\Inscription\Inscription;
-use App\Models\Inscription\Eleve;
-use App\Models\Inscription\AnneeScolaire;
-use App\Models\Inscription\Classe;
+use Illuminate\Database\Eloquent\Model;
 
 class Reinscription extends Model
 {
@@ -15,9 +11,11 @@ class Reinscription extends Model
 
     protected $fillable = [
         'inscription_id',
+        'nouvelle_inscription_id',
         'eleve_id',
         'annee_scolaire_id',
         'classe_id',
+        'statut',
         'montant_reinscription',
         'parascolaire',
         'cantine',
@@ -29,15 +27,20 @@ class Reinscription extends Model
     protected $casts = [
         'date_reinscription' => 'date',
         'est_paye' => 'boolean',
+        'statut' => 'string',
         'montant_reinscription' => 'decimal:2',
-        'parascolaire' => 'decimal:2',
-        'cantine' => 'decimal:2',
+        'parascolaire' => 'boolean',
+        'cantine' => 'boolean',
     ];
 
-    // Relations
     public function inscription()
     {
         return $this->belongsTo(Inscription::class, 'inscription_id');
+    }
+
+    public function nouvelleInscription()
+    {
+        return $this->belongsTo(Inscription::class, 'nouvelle_inscription_id');
     }
 
     public function eleve()

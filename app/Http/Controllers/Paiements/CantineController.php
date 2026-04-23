@@ -24,7 +24,7 @@ class CantineController extends Controller
         ]);
 
         $inscription = Inscription::findOrFail($request->inscription_id);
-        $typeCantine = TypeFrais::where('libelle', 'Cantine')->first();
+        $typeCantine = $this->getTypeCantine($inscription->id_annee_scolaire);
 
         if (!$inscription->cantine) {
             return response()->json([
@@ -156,7 +156,7 @@ class CantineController extends Controller
 
         try {
             $inscription = Inscription::with('resumePaiement')->findOrFail($request->inscription_id);
-            $typeCantine = TypeFrais::where('libelle', 'Cantine')->first();
+            $typeCantine = $this->getTypeCantine($inscription->id_annee_scolaire);
             $userId = $this->getUtilisateurId($request);
 
             $presences = PresenceCantine::where('inscription_id', $inscription->id)
@@ -280,5 +280,20 @@ class CantineController extends Controller
         $user = $request->user();
 
         return $user ? (int) $user->getKey() : null;
+    }
+
+    private function getTypeCantine(?int $anneeScolaireId): ?TypeFrais
+    {
+        return TypeFrais::where('libelle', 'Cantine')
+            ->where(function ($query) use ($anneeScolaireId) {
+                if ($anneeScolaireId) {
+                    $query->where('annee_scolaire_id', $anneeScolaireId)
+                        ->orWhereNull('annee_scolaire_id');
+                } else {
+                    $query->whereNull('annee_scolaire_id');
+                }
+            })
+            ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
+            ->first();
     }
 }

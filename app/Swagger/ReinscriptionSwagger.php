@@ -10,7 +10,7 @@ class ReinscriptionSwagger
         path: '/api/reinscriptions/rechercher',
         tags: ['Reinscription'],
         summary: 'Rechercher un eleve par matricule pour la reinscription',
-        description: 'Retourne les informations de l eleve, sa derniere inscription, une classe superieure proposee et le statut de reinscription pour l annee scolaire demandee.',
+        description: 'Retourne les informations de l eleve, sa derniere inscription, sa classe actuelle, une classe superieure proposee et le statut de reinscription pour l annee scolaire demandee.',
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(
@@ -53,8 +53,19 @@ class ReinscriptionSwagger
                                 new OA\Property(property: 'id', type: 'integer', example: 8),
                                 new OA\Property(property: 'annee_scolaire', type: 'string', nullable: true, example: '2025-09-01 - 2026-06-30'),
                                 new OA\Property(property: 'classe', type: 'string', nullable: true, example: '6eme A'),
+                                new OA\Property(property: 'classe_id', type: 'integer', nullable: true, example: 12),
                                 new OA\Property(property: 'montant_total', type: 'number', format: 'float', nullable: true, example: 540000),
                                 new OA\Property(property: 'date_inscription', type: 'string', format: 'date', nullable: true, example: '2025-09-03'),
+                            ]
+                        ),
+                        new OA\Property(
+                            property: 'classe_actuelle',
+                            nullable: true,
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 12),
+                                new OA\Property(property: 'nom', type: 'string', example: '6eme A'),
+                                new OA\Property(property: 'niveau_id', type: 'integer', example: 6),
+                                new OA\Property(property: 'niveau', type: 'string', nullable: true, example: '6eme'),
                             ]
                         ),
                         new OA\Property(
@@ -83,6 +94,7 @@ class ReinscriptionSwagger
         parameters: [
             new OA\Parameter(name: 'annee_scolaire_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2)),
             new OA\Parameter(name: 'classe_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 14)),
+            new OA\Parameter(name: 'statut', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['Passant', 'Redoublant'], example: 'Passant')),
             new OA\Parameter(name: 'matricule', in: 'query', required: false, schema: new OA\Schema(type: 'string', example: 'REG-2025-0001')),
         ],
         responses: [
@@ -96,19 +108,21 @@ class ReinscriptionSwagger
         path: '/api/reinscriptions',
         tags: ['Reinscription'],
         summary: 'Creer une reinscription',
+        description: 'La reinscription cree egalement une nouvelle inscription pour la nouvelle annee scolaire. Les notes, paiements, frais appliques et resume de paiement se gerent ensuite via nouvelle_inscription_id comme une inscription normale.',
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['matricule', 'inscription_id', 'annee_scolaire_id', 'classe_id', 'montant_reinscription', 'date_reinscription'],
+                required: ['matricule', 'inscription_id', 'annee_scolaire_id', 'classe_id', 'statut', 'date_reinscription'],
                 properties: [
                     new OA\Property(property: 'matricule', type: 'string', example: 'REG-2025-0001'),
                     new OA\Property(property: 'inscription_id', type: 'integer', example: 8),
                     new OA\Property(property: 'annee_scolaire_id', type: 'integer', example: 2),
                     new OA\Property(property: 'classe_id', type: 'integer', example: 14),
-                    new OA\Property(property: 'montant_reinscription', type: 'number', format: 'float', example: 150000),
-                    new OA\Property(property: 'parascolaire', type: 'number', format: 'float', nullable: true, example: 0),
-                    new OA\Property(property: 'cantine', type: 'number', format: 'float', nullable: true, example: 0),
+                    new OA\Property(property: 'statut', type: 'string', enum: ['Passant', 'Redoublant'], example: 'Passant'),
+                    new OA\Property(property: 'parascolaire', type: 'boolean', nullable: true, example: true),
+                    new OA\Property(property: 'cantine', type: 'boolean', nullable: true, example: false),
+                    new OA\Property(property: 'montant_verse', type: 'number', format: 'float', nullable: true, example: 150000),
                     new OA\Property(property: 'date_reinscription', type: 'string', format: 'date', example: '2026-09-05'),
                 ]
             )

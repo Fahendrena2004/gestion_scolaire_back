@@ -623,37 +623,6 @@ class NoteBulletinSwagger
     )]
     public function getBulletinsByClass() {}
 
-    #[OA\Delete(
-        path: '/api/bulletins/{id}',
-        security: [['bearerAuth' => []]],
-        tags: ['Bulletins'],
-        summary: 'Supprimer un bulletin',
-        description: 'Supprime un bulletin et ses détails',
-        parameters: [
-            new OA\Parameter(
-                name: 'id',
-                in: 'path',
-                required: true,
-                description: 'ID du bulletin',
-                schema: new OA\Schema(type: 'integer', example: 1)
-            )
-        ],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Bulletin supprimé',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'message', type: 'string', example: 'Bulletin supprimé avec succès'),
-                    ]
-                )
-            ),
-            new OA\Response(response: 404, description: 'Bulletin non trouvé'),
-            new OA\Response(response: 500, description: 'Erreur serveur')
-        ]
-    )]
-    public function destroyBulletin() {}
 
     #[OA\Get(
         path: '/api/bulletins/{id}/pdf',

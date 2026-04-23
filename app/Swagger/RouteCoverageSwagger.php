@@ -141,6 +141,43 @@ class RouteCoverageSwagger
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
                     new OA\Property(property: 'statut', type: 'string', example: 'en_cours'),
+                    new OA\Property(
+                        property: 'classes',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 12),
+                                new OA\Property(property: 'effectif', type: 'integer', example: 35),
+                            ]
+                        )
+                    ),
+                    new OA\Property(
+                        property: 'calendrier',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'type', type: 'string', enum: ['examen', 'vacance', 'autre'], example: 'examen'),
+                                new OA\Property(property: 'titre', type: 'string', example: 'Examen du premier trimestre'),
+                                new OA\Property(property: 'date_debut', type: 'string', format: 'date', example: '2026-12-10'),
+                                new OA\Property(property: 'date_fin', type: 'string', format: 'date', example: '2026-12-12'),
+                                new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Examen commun'),
+                            ]
+                        )
+                    ),
+                    new OA\Property(
+                        property: 'frais',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'libelle', type: 'string', example: 'Inscription'),
+                                new OA\Property(property: 'montant', type: 'number', format: 'float', example: 75000),
+                                new OA\Property(property: 'est_obligatoire', type: 'boolean', example: true),
+                            ]
+                        )
+                    ),
                 ]
             )
         ),
@@ -181,6 +218,44 @@ class RouteCoverageSwagger
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
                     new OA\Property(property: 'statut', type: 'string', example: 'planifie'),
+                    new OA\Property(
+                        property: 'classes',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 12),
+                                new OA\Property(property: 'effectif', type: 'integer', example: 38),
+                            ]
+                        )
+                    ),
+                    new OA\Property(
+                        property: 'calendrier',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'type', type: 'string', enum: ['examen', 'vacance', 'autre'], example: 'vacance'),
+                                new OA\Property(property: 'titre', type: 'string', example: 'Petite vacance'),
+                                new OA\Property(property: 'date_debut', type: 'string', format: 'date', example: '2026-11-02'),
+                                new OA\Property(property: 'date_fin', type: 'string', format: 'date', example: '2026-11-06'),
+                                new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Pause de petite vacance'),
+                            ]
+                        )
+                    ),
+                    new OA\Property(
+                        property: 'frais',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', nullable: true, example: 1),
+                                new OA\Property(property: 'libelle', type: 'string', example: 'Cantine'),
+                                new OA\Property(property: 'montant', type: 'number', format: 'float', example: 80000),
+                                new OA\Property(property: 'est_obligatoire', type: 'boolean', example: false),
+                            ]
+                        )
+                    ),
                 ]
             )
         ),
@@ -367,6 +442,9 @@ class RouteCoverageSwagger
         tags: ['Types de Frais'],
         summary: 'Lister les types de frais',
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'annee_scolaire_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2)),
+        ],
         responses: [new OA\Response(response: 200, description: 'Liste des types de frais')]
     )]
     public function fraisTypeIndex() {}
@@ -379,8 +457,9 @@ class RouteCoverageSwagger
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['libelle', 'montant', 'est_obligatoire'],
+                required: ['annee_scolaire_id', 'libelle', 'montant', 'est_obligatoire'],
                 properties: [
+                    new OA\Property(property: 'annee_scolaire_id', type: 'integer', example: 2),
                     new OA\Property(property: 'libelle', type: 'string', example: 'Cantine'),
                     new OA\Property(property: 'montant', type: 'number', format: 'float', example: 75000),
                     new OA\Property(property: 'est_obligatoire', type: 'boolean', example: false),
@@ -401,6 +480,7 @@ class RouteCoverageSwagger
             required: true,
             content: new OA\JsonContent(
                 properties: [
+                    new OA\Property(property: 'annee_scolaire_id', type: 'integer', example: 2),
                     new OA\Property(property: 'libelle', type: 'string'),
                     new OA\Property(property: 'montant', type: 'number', format: 'float'),
                     new OA\Property(property: 'est_obligatoire', type: 'boolean'),
@@ -502,6 +582,11 @@ class RouteCoverageSwagger
         tags: ['Matieres'],
         summary: 'Lister les matieres',
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'classe_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 12)),
+            new OA\Parameter(name: 'niveau_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 6)),
+            new OA\Parameter(name: 'cycle', in: 'query', required: false, schema: new OA\Schema(type: 'string', example: 'college')),
+        ],
         responses: [new OA\Response(response: 200, description: 'Liste des matieres')]
     )]
     public function matiereIndex() {}
@@ -514,10 +599,11 @@ class RouteCoverageSwagger
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['nom', 'coefficient'],
+                required: ['nom', 'coefficient', 'classe_id'],
                 properties: [
                     new OA\Property(property: 'nom', type: 'string', example: 'Mathematiques'),
                     new OA\Property(property: 'coefficient', type: 'integer', example: 4),
+                    new OA\Property(property: 'classe_id', type: 'integer', example: 12),
                 ]
             )
         ),
@@ -542,6 +628,7 @@ class RouteCoverageSwagger
                             properties: [
                                 new OA\Property(property: 'nom', type: 'string', example: 'Francais'),
                                 new OA\Property(property: 'coefficient', type: 'integer', example: 4),
+                                new OA\Property(property: 'classe_id', type: 'integer', example: 12),
                             ]
                         )
                     ),
@@ -577,6 +664,7 @@ class RouteCoverageSwagger
                 properties: [
                     new OA\Property(property: 'nom', type: 'string'),
                     new OA\Property(property: 'coefficient', type: 'integer'),
+                    new OA\Property(property: 'classe_id', type: 'integer'),
                 ]
             )
         ),

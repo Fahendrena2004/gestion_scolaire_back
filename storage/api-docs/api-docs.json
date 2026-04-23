@@ -841,13 +841,229 @@
                     "Dashboard"
                 ],
                 "summary": "Tableau de bord du caissier",
+                "description": "Retourne les statistiques du dashboard, les transactions recentes et un historique recent incluant inscriptions, notes et bulletins.",
                 "operationId": "8964e447620241be76c4000f2145a733",
                 "responses": {
                     "200": {
-                        "description": "Succès"
+                        "description": "Succes"
                     },
                     "401": {
-                        "description": "Non authentifié"
+                        "description": "Non authentifie"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Lister les annees scolaires pour le recapitulatif",
+                "operationId": "bc52855c3f8cfce092ee1b464d48bd53",
+                "responses": {
+                    "200": {
+                        "description": "Liste des annees scolaires"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/classes": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Lister les classes d une annee scolaire",
+                "operationId": "abdb0929d13bd132eea68293a52d8523",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "niveau_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Classes recuperees"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/classes/{classeId}": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Afficher le detail d une classe pour une annee scolaire",
+                "operationId": "5569616f0d6ea96c84afa6dc4f1a9ccc",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "classeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail de la classe"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/statistiques": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Consulter les statistiques d une annee scolaire",
+                "operationId": "d83c81b7877d4b7bde6d075679a05b27",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistiques recuperees"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/finance": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Consulter le recapitulatif financier d une annee scolaire",
+                "operationId": "b0d670f2f6dbc600970e449a9916754d",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Recapitulatif financier recupere"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/journal-caisse": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Consulter le journal de caisse d une journee",
+                "operationId": "3187896607baee4d15cf136771735b84",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-04-23"
+                        }
+                    },
+                    {
+                        "name": "nom",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Rakoto"
+                        }
+                    },
+                    {
+                        "name": "email",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "caissier@example.com"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Journal de caisse recupere"
                     }
                 },
                 "security": [

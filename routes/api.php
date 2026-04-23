@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 */
 //Dashboard
 use App\Http\Controllers\Dashboard\CaissierController;
+use App\Http\Controllers\Dashboard\RecapitulatifAnneeScolaireController;
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -110,6 +111,15 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,caissier')->group(function () {
+        Route::prefix('dashboard/recapitulatif')->group(function () {
+            Route::get('/annees-scolaires', [RecapitulatifAnneeScolaireController::class, 'anneesScolaires']);
+            Route::get('/annees-scolaires/{anneeId}/classes', [RecapitulatifAnneeScolaireController::class, 'classesParAnnee']);
+            Route::get('/annees-scolaires/{anneeId}/classes/{classeId}', [RecapitulatifAnneeScolaireController::class, 'detailClasse']);
+            Route::get('/annees-scolaires/{anneeId}/statistiques', [RecapitulatifAnneeScolaireController::class, 'statistiques']);
+            Route::get('/annees-scolaires/{anneeId}/finance', [RecapitulatifAnneeScolaireController::class, 'finance']);
+            Route::get('/annees-scolaires/{anneeId}/journal-caisse', [RecapitulatifAnneeScolaireController::class, 'journalCaisse']);
+        });
+
         Route::prefix('inscription')->group(function () {
             Route::get('/cycles', [CycleController::class, 'index']);
 

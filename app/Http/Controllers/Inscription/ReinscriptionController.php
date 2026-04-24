@@ -110,7 +110,7 @@ class ReinscriptionController extends Controller
             'matricule' => 'required|string|exists:eleves,matricule',
             'inscription_id' => 'required|exists:inscriptions,id',
             'annee_scolaire_id' => 'required|exists:annee_scolaires,id',
-            'classe_id' => 'required|exists:classes,id',
+            'classe_id' => 'nullable|exists:classes,id',
             'statut' => 'required|in:Passant,Redoublant',
             'parascolaire' => 'sometimes|boolean',
             'cantine' => 'sometimes|boolean',
@@ -138,13 +138,54 @@ class ReinscriptionController extends Controller
             ], 422);
         }
 
-        $classeCible = Classe::with('niveau')->find($request->classe_id);
         $anneeScolaire = AnneeScolaire::find($request->annee_scolaire_id);
 
-        if (!$classeCible || !$anneeScolaire) {
+        if (!$anneeScolaire) {
             return response()->json([
-                'message' => 'Classe cible ou annee scolaire introuvable',
+                'message' => 'Annee scolaire introuvable',
             ], 404);
+        }
+
+        $nowDate = now()->toDateString();
+        // DESACTIVE POUR LES TESTS
+        /*
+        if ($anneeScolaire->date_debut_inscription && $nowDate < $anneeScolaire->date_debut_inscription) {
+            return response()->json([
+                'message' => 'La periode de reinscription n a pas encore commence.',
+            ], 422);
+        }
+
+        if ($anneeScolaire->date_fin_inscription && $nowDate > $anneeScolaire->date_fin_inscription) {
+            return response()->json([
+                'message' => 'La periode de reinscription est terminee.',
+            ], 422);
+        }
+        */
+
+        if ($request->filled('classe_id')) {
+            $classeCible = Classe::with('niveau')->find($request->classe_id);
+            if (!$classeCible) {
+                return response()->json([
+                    'message' => 'Classe cible introuvable',
+                ], 404);
+            }
+            if ($classeCible->estPleine()) {
+                return response()->json([
+                    'message' => 'La classe ' . $classeCible->nom_classe . ' est pleine (max ' . ($classeCible->max_effectif ?? 50) . ' eleves).',
+                ], 422);
+            }
+        } else {
+            $niveauCibleId = $ancienneInscription->classe->niveau_id;
+            if ($request->statut === 'Passant') {
+                $niveauCibleId++;
+            }
+            $classeCible = $this->trouverClasseDisponible($niveauCibleId, $anneeScolaire->id);
+            
+            if (!$classeCible) {
+                return response()->json([
+                    'message' => 'Aucune classe disponible pour le niveau cible. Veuillez contacter l administrateur.',
+                ], 422);
+            }
         }
 
         $existe = Reinscription::where('eleve_id', $eleve->id)
@@ -181,6 +222,8 @@ class ReinscriptionController extends Controller
                 'montant_net' => 0,
                 'utilisateur_id' => Auth::id(),
             ]);
+
+            $classeCible->increment('effectif');
 
             $montantTotal = $this->appliquerFrais($nouvelleInscription, $classeCible->niveau->cycle, $anneeScolaire);
 
@@ -336,6 +379,10 @@ class ReinscriptionController extends Controller
             $montantTotal += $this->ajouterFrais($inscription, 'Parascolaire');
         }
 
+        if ($inscription->cantine) {
+            $montantTotal += $this->ajouterFrais($inscription, 'Cantine');
+        }
+
         return $montantTotal;
     }
 
@@ -479,6 +526,15 @@ class ReinscriptionController extends Controller
                 }
             })
             ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
+            ->first();
+    }
+
+    private function trouverClasseDisponible(int $niveauId, int $anneeScolaireId): ?Classe
+    {
+        return Classe::where('niveau_id', $niveauId)
+            ->where('anneeScolaire_id', $anneeScolaireId)
+            ->whereRaw('effectif < COALESCE(max_effectif, 50)')
+            ->orderBy('code_division', 'asc')
             ->first();
     }
 }

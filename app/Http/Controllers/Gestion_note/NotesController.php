@@ -62,7 +62,7 @@ class NotesController extends Controller
 
         try {
             $inscription = Inscription::find($request->inscription_id);
-            $matiere = Matieres::find($request->matiere_id);
+            $matiere     = Matieres::find($request->matiere_id);
 
             if (!$inscription || !$matiere) {
                 return response()->json([
@@ -78,7 +78,15 @@ class NotesController extends Controller
                 ], 422);
             }
 
-            $note = Notes::create($request->all());
+            $note = Notes::create($request->only([
+                'inscription_id',
+                'matiere_id',
+                'valeur',
+                'periode',
+                'date',
+                'type',
+                'appreciation',
+            ]));
             $noteWithMatiere = Notes::with('matiere')->find($note->id);
 
             return response()->json([

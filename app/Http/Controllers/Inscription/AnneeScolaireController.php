@@ -42,7 +42,7 @@ class AnneeScolaireController extends Controller
                 AnneeScolaire::where('statut', 'en_cours')->update(['statut' => 'termine']);
             }
 
-            $annee = AnneeScolaire::create($request->only(['date_debut', 'date_fin', 'statut']));
+            $annee = AnneeScolaire::create($request->only(['date_debut', 'date_fin', 'statut', 'date_debut_inscription', 'date_fin_inscription']));
 
             $this->synchroniserClasses($annee, $request->input('classes', []));
             $this->remplacerCalendrier($annee, $request->input('calendrier', []));
@@ -94,7 +94,7 @@ class AnneeScolaireController extends Controller
                     ->update(['statut' => 'termine']);
             }
 
-            $annee->update($request->only(['date_debut', 'date_fin', 'statut']));
+            $annee->update($request->only(['date_debut', 'date_fin', 'statut', 'date_debut_inscription', 'date_fin_inscription']));
 
             if ($request->has('classes')) {
                 $this->synchroniserClasses($annee, $request->input('classes', []));
@@ -152,22 +152,27 @@ class AnneeScolaireController extends Controller
         $required = $isUpdate ? 'sometimes' : 'required';
 
         return Validator::make($request->all(), [
-            'date_debut' => [$required, 'date'],
-            'date_fin' => [$required, 'date', 'after:date_debut'],
-            'statut' => [$required, 'in:en_cours,termine,planifie'],
-            'classes' => 'nullable|array',
-            'classes.*.id' => 'required|exists:classes,id',
-            'classes.*.effectif' => 'nullable|integer|min:0',
-            'calendrier' => 'nullable|array',
-            'calendrier.*.type' => 'required|in:examen,vacance,autre',
-            'calendrier.*.titre' => 'required|string|max:150',
+            'date_debut'              => [$required, 'date'],
+            'date_fin'                => [$required, 'date', 'after:date_debut'],
+            'statut'                  => [$required, 'in:en_cours,termine,planifie'],
+            'date_debut_inscription'  => 'nullable|date',
+            'date_fin_inscription'    => 'nullable|date|after_or_equal:date_debut_inscription',
+            'classes'                 => 'nullable|array',
+            'classes.*.id'            => 'required|exists:classes,id',
+            'classes.*.effectif'      => 'nullable|integer|min:0',
+            'classes.*.max_effectif'  => 'nullable|integer|min:1|max:200',
+            'calendrier'              => 'nullable|array',
+            'calendrier.*.type'       => 'required|in:examen,vacance,autre',
+            'calendrier.*.trimestre'  => 'nullable|in:T1,T2,T3',
+            'calendrier.*.titre'      => 'required|string|max:150',
             'calendrier.*.date_debut' => 'required|date',
-            'calendrier.*.date_fin' => 'required|date',
+            'calendrier.*.date_fin'   => 'required|date',
+            'calendrier.*.date_examen' => 'nullable|date',
             'calendrier.*.description' => 'nullable|string',
-            'frais' => 'nullable|array',
-            'frais.*.id' => 'nullable|exists:type_frais,id',
-            'frais.*.libelle' => 'required|string|max:100',
-            'frais.*.montant' => 'required|numeric|min:0',
+            'frais'                   => 'nullable|array',
+            'frais.*.id'              => 'nullable|exists:type_frais,id',
+            'frais.*.libelle'         => 'required|string|max:100',
+            'frais.*.montant'         => 'required|numeric|min:0',
             'frais.*.est_obligatoire' => 'required|boolean',
         ]);
     }
@@ -187,6 +192,10 @@ class AnneeScolaireController extends Controller
 
             if (array_key_exists('effectif', $data)) {
                 $payload['effectif'] = $data['effectif'];
+            }
+
+            if (array_key_exists('max_effectif', $data)) {
+                $payload['max_effectif'] = $data['max_effectif'];
             }
 
             $classe->update($payload);

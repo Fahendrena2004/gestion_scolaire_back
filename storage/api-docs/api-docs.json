@@ -1220,8 +1220,50 @@
                 "tags": [
                     "Inscription"
                 ],
-                "summary": "Lister les inscriptions",
+                "summary": "Lister les inscriptions (Repertoire)",
                 "operationId": "ee622554c0cfff66ba7334731de66038",
+                "parameters": [
+                    {
+                        "name": "annee_scolaire_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    },
+                    {
+                        "name": "niveau_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 6
+                        }
+                    },
+                    {
+                        "name": "statut_paiement",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "non_paye",
+                            "enum": [
+                                "paye",
+                                "non_paye"
+                            ]
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Liste des inscriptions"
@@ -3697,6 +3739,16 @@
                                         "type": "string",
                                         "example": "en_cours"
                                     },
+                                    "date_debut_inscription": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "date_fin_inscription": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
                                     "classes": {
                                         "type": "array",
                                         "items": {
@@ -3879,6 +3931,16 @@
                                     "statut": {
                                         "type": "string",
                                         "example": "planifie"
+                                    },
+                                    "date_debut_inscription": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "date_fin_inscription": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
                                     },
                                     "classes": {
                                         "type": "array",

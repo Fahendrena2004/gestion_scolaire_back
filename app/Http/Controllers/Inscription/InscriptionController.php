@@ -19,62 +19,74 @@ use Illuminate\Support\Facades\Validator;
 
 class InscriptionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $inscriptions = Inscription::with([
+        $query = Inscription::with([
             'eleve',
             'classe.niveau',
             'anneeScolaire',
             'resumePaiement',
-        ])->get();
+        ]);
+
+        if ($request->has('annee_scolaire_id')) {
+            $query->where('id_annee_scolaire', $request->annee_scolaire_id);
+        }
+
+        if ($request->has('classe_id')) {
+            $query->where('id_classe', $request->classe_id);
+        }
+
+        if ($request->has('niveau_id')) {
+            $query->whereHas('classe', function ($q) use ($request) {
+                $q->where('niveau_id', $request->niveau_id);
+            });
+        }
+
+        if ($request->has('statut_paiement')) {
+            $statut = $request->statut_paiement; // 'paye' ou 'non_paye'
+            $query->whereHas('resumePaiement', function ($q) use ($statut) {
+                if ($statut === 'paye') {
+                    $q->where('total_restant', '<=', 0);
+                } else if ($statut === 'non_paye') {
+                    $q->where('total_restant', '>', 0);
+                }
+            });
+        }
+
+        $inscriptions = $query->get();
 
         return response()->json([
             'success' => true,
-            'data' => $inscriptions,
+            'data'    => $inscriptions,
         ]);
     }
 
     public function store(Request $request)
     {
-        $currentUser = $request->user();
+        $currentUser   = $request->user();
         $utilisateurId = $currentUser ? (int) $currentUser->getKey() : null;
 
         $validator = Validator::make($request->all(), [
-            'nom' => 'required|string|max:100',
-            'prenom' => 'required|string|max:100',
-            'date_naissance' => 'required|date|before:today',
-            'lieu_naissance' => 'required|string|max:150',
-            'sexe' => 'required|in:M,F',
-            'niveau_id' => 'required|exists:niveaux,id',
-            'classe_id' => 'required|exists:classes,id',
-            'adresse' => 'nullable|string|max:255',
-            'parascolaire' => 'sometimes|boolean',
-            'cantine' => 'sometimes|boolean',
-            'montant_verse' => 'nullable|numeric|min:0',
-            'responsable_nom' => 'nullable|string|max:150',
-            'responsable_telephone' => 'nullable|string|max:30',
+            'nom'                    => 'required|string|max:100',
+            'prenom'                 => 'required|string|max:100',
+            'date_naissance'         => 'required|date|before:today',
+            'lieu_naissance'         => 'required|string|max:150',
+            'sexe'                   => 'required|in:M,F',
+            'niveau_id'              => 'required|exists:niveaux,id',
+            // classe_id devient optionnel : si absent, attribution automatique
+            'classe_id'              => 'nullable|exists:classes,id',
+            'adresse'                => 'nullable|string|max:255',
+            'parascolaire'           => 'sometimes|boolean',
+            'cantine'                => 'sometimes|boolean',
+            'montant_verse'          => 'nullable|numeric|min:0',
+            'responsable_nom'        => 'nullable|string|max:150',
+            'responsable_telephone'  => 'nullable|string|max:30',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $classe = Classe::with('niveau')->find($request->classe_id);
-
-        if (!$classe) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Classe non trouvee.',
-            ], 404);
-        }
-
-        if ((int) $classe->niveau_id !== (int) $request->niveau_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'La classe selectionnee ne correspond pas au niveau fourni.',
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
@@ -85,6 +97,60 @@ class InscriptionController extends Controller
                 'success' => false,
                 'message' => 'Aucune annee scolaire active.',
             ], 404);
+        }
+
+        $nowDate = now()->toDateString();
+        // DESACTIVE POUR LES TESTS
+        /*
+        if ($anneeActive->date_debut_inscription && $nowDate < $anneeActive->date_debut_inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La periode d inscription n a pas encore commence.',
+            ], 422);
+        }
+
+        if ($anneeActive->date_fin_inscription && $nowDate > $anneeActive->date_fin_inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La periode d inscription est terminee.',
+            ], 422);
+        }
+        */
+
+        // Résoudre la classe : manuelle ou automatique
+        if ($request->filled('classe_id')) {
+            $classe = Classe::with('niveau')->find($request->classe_id);
+
+            if (!$classe) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Classe non trouvee.',
+                ], 404);
+            }
+
+            if ((int) $classe->niveau_id !== (int) $request->niveau_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La classe selectionnee ne correspond pas au niveau fourni.',
+                ], 422);
+            }
+
+            if ($classe->estPleine()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La classe ' . $classe->nom_classe . ' est pleine (max ' . ($classe->max_effectif ?? 50) . ' eleves). Choisissez une autre classe ou laissez le systeme en choisir une automatiquement.',
+                ], 422);
+            }
+        } else {
+            // Attribution automatique : première classe disponible du niveau
+            $classe = $this->trouverClasseDisponible($request->niveau_id, $anneeActive->id);
+
+            if (!$classe) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune classe disponible pour ce niveau. Toutes les classes sont pleines. Veuillez contacter l administrateur.',
+                ], 422);
+            }
         }
 
         DB::beginTransaction();
@@ -98,13 +164,13 @@ class InscriptionController extends Controller
 
             if (!$eleve) {
                 $eleve = Eleve::create([
-                    'nom' => $request->nom,
-                    'prenom' => $request->prenom,
-                    'date_naissance' => $request->date_naissance,
-                    'lieu_naissance' => $request->lieu_naissance,
-                    'sexe' => $request->sexe,
-                    'adresse' => $request->adresse,
-                    'matricule' => $this->genererMatricule($classe->niveau->cycle),
+                    'nom'             => $request->nom,
+                    'prenom'          => $request->prenom,
+                    'date_naissance'  => $request->date_naissance,
+                    'lieu_naissance'  => $request->lieu_naissance,
+                    'sexe'            => $request->sexe,
+                    'adresse'         => $request->adresse,
+                    'matricule'       => $this->genererMatricule($classe->niveau->cycle),
                 ]);
             }
 
@@ -112,22 +178,25 @@ class InscriptionController extends Controller
             $this->enregistrerInformationDynamique($eleve->id, 'responsable_telephone', $request->responsable_telephone);
 
             $inscription = Inscription::create([
-                'id_eleve' => $eleve->id,
-                'id_classe' => $classe->id,
+                'id_eleve'          => $eleve->id,
+                'id_classe'         => $classe->id,
                 'id_annee_scolaire' => $anneeActive->id,
-                'date_inscription' => now(),
-                'parascolaire' => $request->boolean('parascolaire'),
-                'cantine' => $request->boolean('cantine'),
-                'montant_total' => 0,
-                'montant_net' => 0,
-                'utilisateur_id' => $utilisateurId,
+                'date_inscription'  => now(),
+                'parascolaire'      => $request->boolean('parascolaire'),
+                'cantine'           => $request->boolean('cantine'),
+                'montant_total'     => 0,
+                'montant_net'       => 0,
+                'utilisateur_id'    => $utilisateurId,
             ]);
+
+            // Incrémenter l'effectif de la classe
+            $classe->increment('effectif');
 
             $montantTotal = $this->appliquerFrais($inscription, $classe->niveau->cycle, $anneeActive);
 
             $inscription->update([
                 'montant_total' => $montantTotal,
-                'montant_net' => $montantTotal,
+                'montant_net'   => $montantTotal,
             ]);
 
             $resume = $this->creerOuMettreAJourResumePaiement($inscription, $montantTotal);
@@ -145,18 +214,20 @@ class InscriptionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Inscription reussie',
-                'data' => [
-                    'matricule' => $eleve->matricule,
-                    'eleve_id' => $eleve->id,
-                    'inscription_id' => $inscription->id,
-                    'classe' => $classe->nom_classe,
-                    'niveau' => $classe->niveau->nom_niveau,
-                    'cycle' => $classe->niveau->cycle,
-                    'annee_scolaire_id' => $anneeActive->id,
-                    'montant_total' => $montantTotal,
-                    'montant_verse' => $montantVerse,
-                    'resume' => $resume->fresh(),
-                    'nombre_mois_scolarite' => $this->compterMoisScolaires($anneeActive),
+                'data'    => [
+                    'matricule'              => $eleve->matricule,
+                    'eleve_id'               => $eleve->id,
+                    'inscription_id'         => $inscription->id,
+                    'classe'                 => $classe->nom_classe,
+                    'niveau'                 => $classe->niveau->nom_niveau,
+                    'cycle'                  => $classe->niveau->cycle,
+                    'annee_scolaire_id'      => $anneeActive->id,
+                    'montant_total'          => $montantTotal,
+                    'montant_verse'          => $montantVerse,
+                    'resume'                 => $resume->fresh(),
+                    'nombre_mois_scolarite'  => $this->compterMoisScolaires($anneeActive),
+                    'effectif_classe'        => $classe->fresh()->effectif,
+                    'max_effectif_classe'    => $classe->max_effectif ?? 50,
                 ],
             ], 201);
         } catch (\Throwable $e) {
@@ -165,7 +236,7 @@ class InscriptionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de l inscription',
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -192,7 +263,7 @@ class InscriptionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $inscription,
+            'data'    => $inscription,
         ]);
     }
 
@@ -213,11 +284,69 @@ class InscriptionController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'inscription_id' => $inscription->id,
-                'eleve_id' => $inscription->id_eleve,
+            'data'    => [
+                'inscription_id'   => $inscription->id,
+                'eleve_id'         => $inscription->id_eleve,
                 'infos_dynamiques' => $infos,
             ],
+        ]);
+    }
+
+    /**
+     * Trouve la première classe disponible (non pleine) pour un niveau donné.
+     * Trie par code_division (A, B, C...) pour remplir dans l'ordre.
+     */
+    private function trouverClasseDisponible(int $niveauId, int $anneeScolaireId): ?Classe
+    {
+        return Classe::where('niveau_id', $niveauId)
+            ->where('anneeScolaire_id', $anneeScolaireId)
+            ->whereRaw('effectif < COALESCE(max_effectif, 50)')
+            ->orderBy('code_division', 'asc')
+            ->first();
+    }
+
+    /**
+     * Retourne les classes d'un niveau avec leur disponibilité.
+     */
+    public function getClasseAuto(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'niveau_id' => 'required|exists:niveaux,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $anneeActive = AnneeScolaire::where('statut', 'en_cours')->first();
+
+        if (!$anneeActive) {
+            return response()->json(['success' => false, 'message' => 'Aucune annee scolaire active.'], 404);
+        }
+
+        $classes = Classe::where('niveau_id', $request->niveau_id)
+            ->where('anneeScolaire_id', $anneeActive->id)
+            ->orderBy('code_division', 'asc')
+            ->get()
+            ->map(function ($classe) {
+                $max = $classe->max_effectif ?? 50;
+                return [
+                    'id'            => $classe->id,
+                    'nom_classe'    => $classe->nom_classe,
+                    'code_division' => $classe->code_division,
+                    'effectif'      => $classe->effectif,
+                    'max_effectif'  => $max,
+                    'places_restantes' => max($max - $classe->effectif, 0),
+                    'est_pleine'    => $classe->estPleine(),
+                ];
+            });
+
+        $classeDisponible = $classes->firstWhere('est_pleine', false);
+
+        return response()->json([
+            'success'           => true,
+            'classe_suggeree'   => $classeDisponible,
+            'toutes_les_classes' => $classes,
         ]);
     }
 
@@ -228,13 +357,8 @@ class InscriptionController extends Controller
         }
 
         AutreInformation::updateOrCreate(
-            [
-                'id_eleve' => $eleveId,
-                'nom_champ' => $champ,
-            ],
-            [
-                'valeur_champ' => $valeur,
-            ]
+            ['id_eleve' => $eleveId, 'nom_champ' => $champ],
+            ['valeur_champ' => $valeur]
         );
     }
 
@@ -254,6 +378,10 @@ class InscriptionController extends Controller
             $montantTotal += $this->ajouterFrais($inscription, 'Parascolaire');
         }
 
+        if ($inscription->cantine) {
+            $montantTotal += $this->ajouterFrais($inscription, 'Cantine');
+        }
+
         return $montantTotal;
     }
 
@@ -268,9 +396,9 @@ class InscriptionController extends Controller
         $montant = (float) $typeFrais->montant * max($multiplicateur, 1);
 
         FraisApplique::create([
-            'id_frais' => $typeFrais->id,
+            'id_frais'       => $typeFrais->id,
             'id_inscription' => $inscription->id,
-            'montant' => $montant,
+            'montant'        => $montant,
         ]);
 
         return $montant;
@@ -281,8 +409,8 @@ class InscriptionController extends Controller
         return ResumePaiement::updateOrCreate(
             ['inscription_id' => $inscription->id],
             [
-                'total_du' => $montantTotal,
-                'total_paye' => 0,
+                'total_du'      => $montantTotal,
+                'total_paye'    => 0,
                 'total_restant' => $montantTotal,
             ]
         );
@@ -300,7 +428,8 @@ class InscriptionController extends Controller
             ->with('typeFrais')
             ->whereHas('typeFrais', function ($query) {
                 $query->where('libelle', 'not like', 'Scolarité%')
-                    ->where('libelle', '!=', 'Cantine');
+                      ->where('libelle', 'not like', 'Scolarite%')
+                      ->where('libelle', '!=', 'Cantine');
             })
             ->orderBy('id')
             ->get();
@@ -311,14 +440,14 @@ class InscriptionController extends Controller
             }
 
             Paiement::create([
-                'reference' => $this->genererReferencePaiement(),
+                'reference'      => $this->genererReferencePaiement(),
                 'inscription_id' => $inscription->id,
-                'type_frais_id' => $frais->id_frais,
-                'type' => 'autre_frais',
-                'libelle' => $frais->typeFrais?->libelle,
-                'details' => null,
-                'montant' => $frais->montant,
-                'date_paiement' => now(),
+                'type_frais_id'  => $frais->id_frais,
+                'type'           => 'autre_frais',
+                'libelle'        => $frais->typeFrais?->libelle,
+                'details'        => null,
+                'montant'        => $frais->montant,
+                'date_paiement'  => now(),
                 'utilisateur_id' => $userId,
             ]);
 
@@ -327,13 +456,13 @@ class InscriptionController extends Controller
 
         if ($montantRestant > 0) {
             Paiement::create([
-                'reference' => $this->genererReferencePaiement(),
+                'reference'      => $this->genererReferencePaiement(),
                 'inscription_id' => $inscription->id,
-                'type' => 'avance',
-                'libelle' => 'Avance inscription',
-                'details' => null,
-                'montant' => $montantRestant,
-                'date_paiement' => now(),
+                'type'           => 'avance',
+                'libelle'        => 'Avance inscription',
+                'details'        => null,
+                'montant'        => $montantRestant,
+                'date_paiement'  => now(),
                 'utilisateur_id' => $userId,
             ]);
         }
@@ -346,7 +475,7 @@ class InscriptionController extends Controller
         $totalPaye = (float) Paiement::where('inscription_id', $resume->inscription_id)->sum('montant');
 
         $resume->update([
-            'total_paye' => $totalPaye,
+            'total_paye'    => $totalPaye,
             'total_restant' => max((float) $resume->total_du - $totalPaye, 0),
         ]);
     }
@@ -357,7 +486,7 @@ class InscriptionController extends Controller
             ->where(function ($query) use ($anneeScolaireId) {
                 if ($anneeScolaireId) {
                     $query->where('annee_scolaire_id', $anneeScolaireId)
-                        ->orWhereNull('annee_scolaire_id');
+                          ->orWhereNull('annee_scolaire_id');
                 } else {
                     $query->whereNull('annee_scolaire_id');
                 }
@@ -370,16 +499,16 @@ class InscriptionController extends Controller
     {
         return match ($cycle) {
             'primaire' => 'Scolarité - Primaire',
-            'college' => 'Scolarité - Collège',
-            'lycee' => 'Scolarité - Lycée',
-            default => 'Scolarité',
+            'college'  => 'Scolarité - Collège',
+            'lycee'    => 'Scolarité - Lycée',
+            default    => 'Scolarité',
         };
     }
 
     private function compterMoisScolaires(AnneeScolaire $anneeScolaire): int
     {
         $dateDebut = Carbon::parse($anneeScolaire->date_debut)->startOfMonth();
-        $dateFin = Carbon::parse($anneeScolaire->date_fin)->startOfMonth();
+        $dateFin   = Carbon::parse($anneeScolaire->date_fin)->startOfMonth();
 
         return $dateDebut->diffInMonths($dateFin) + 1;
     }
@@ -388,9 +517,9 @@ class InscriptionController extends Controller
     {
         $code = match ($cycle) {
             'primaire' => 'PR',
-            'college' => 'CL',
-            'lycee' => 'LY',
-            default => 'XX',
+            'college'  => 'CL',
+            'lycee'    => 'LY',
+            default    => 'XX',
         };
 
         $lastId = Eleve::max('id') ?? 0;

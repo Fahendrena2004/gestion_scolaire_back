@@ -13,7 +13,13 @@ class Classe extends Model
         'niveau_id',
         'code_division',
         'effectif',
+        'max_effectif',
         'anneeScolaire_id',
+    ];
+
+    protected $attributes = [
+        'max_effectif' => 50,
+        'effectif'     => 0,
     ];
 
     public function niveau()
@@ -34,5 +40,22 @@ class Classe extends Model
     public function inscriptions()
     {
         return $this->hasMany(Inscription::class, 'id_classe');
+    }
+
+    /**
+     * Vérifie si la classe a atteint sa capacité maximale (basé sur le champ effectif).
+     */
+    public function estPleine(): bool
+    {
+        $max = $this->max_effectif ?? 50;
+        return $this->effectif >= $max;
+    }
+
+    /**
+     * Retourne le nombre d'élèves réellement inscrits dans cette classe.
+     */
+    public function effectifActuel(): int
+    {
+        return $this->inscriptions()->count();
     }
 }

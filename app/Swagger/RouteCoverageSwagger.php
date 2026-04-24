@@ -141,6 +141,8 @@ class RouteCoverageSwagger
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
                     new OA\Property(property: 'statut', type: 'string', example: 'en_cours'),
+                    new OA\Property(property: 'date_debut_inscription', type: 'string', format: 'date', nullable: true),
+                    new OA\Property(property: 'date_fin_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(
                         property: 'classes',
                         type: 'array',
@@ -218,6 +220,8 @@ class RouteCoverageSwagger
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
                     new OA\Property(property: 'statut', type: 'string', example: 'planifie'),
+                    new OA\Property(property: 'date_debut_inscription', type: 'string', format: 'date', nullable: true),
+                    new OA\Property(property: 'date_fin_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(
                         property: 'classes',
                         type: 'array',
@@ -504,8 +508,14 @@ class RouteCoverageSwagger
     #[OA\Get(
         path: '/api/inscription',
         tags: ['Inscription'],
-        summary: 'Lister les inscriptions',
+        summary: 'Lister les inscriptions (Repertoire)',
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'annee_scolaire_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 2)),
+            new OA\Parameter(name: 'classe_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 12)),
+            new OA\Parameter(name: 'niveau_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 6)),
+            new OA\Parameter(name: 'statut_paiement', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['paye', 'non_paye'], example: 'non_paye')),
+        ],
         responses: [new OA\Response(response: 200, description: 'Liste des inscriptions')]
     )]
     public function inscriptionIndex() {}

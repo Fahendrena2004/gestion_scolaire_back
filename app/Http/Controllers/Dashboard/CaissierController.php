@@ -15,198 +15,234 @@ class CaissierController extends Controller
 {
     public function index()
     {
-        $now = Carbon::now();
+        $now         = Carbon::now();
+        $anneeActive = $this->getAnneeActive();
 
-        $nombreElevesInscrits = $this->getNombreElevesInscrits();
-        $totalPrevu = $this->getTotalPrevuAnnuelRestant();
-        $totalEntreeMois = $this->getTotalEntreeMois($now->month, $now->year);
-        $soldeNet = $this->getSoldeNet();
-        $transactionsRecentes = $this->getTransactionsRecentes(10);
-        $historiqueRecent = $this->getHistoriqueRecent(12);
-        $tauxRecouvrement = $this->getTauxRecouvrement();
+        // ── Encaissements ────────────────────────────────────────────────────
+        // Total de tous les paiements reçus (année scolaire en cours)
+        $totalEncaissements = $this->getTotalEncaissements($anneeActive);
+
+        // Total encaissé ce mois-ci
+        $totalEncaissementsMois = $this->getTotalEntreeMois($now->month, $now->year, $anneeActive);
+
+        // ── Décaissements ────────────────────────────────────────────────────
+        // Montant total dû (attendu) pour l'année = total_du de tous les résumés
+        $totalDu = $this->getTotalDu($anneeActive);
+
+        // Montant encore impayé (= décaissement attendu non reçu)
+        $totalRestant = $this->getTotalRestant($anneeActive);
+
+        // ── Solde Net ────────────────────────────────────────────────────────
+        // Solde net = Total encaissé - Total restant à payer (ce qui n'a pas encore été payé)
+        // Autrement dit : combien l'école a effectivement reçu vs ce qu'elle doit encore recevoir
+        $soldeNet = $totalEncaissements;
+
+        // ── Autres indicateurs ───────────────────────────────────────────────
+        $nombreElevesInscrits  = $this->getNombreElevesInscrits($anneeActive);
+        $tauxRecouvrement      = $this->getTauxRecouvrement($anneeActive, $totalDu, $totalEncaissements);
+        $transactionsRecentes  = $this->getTransactionsRecentes(10, $anneeActive);
+        $historiqueRecent      = $this->getHistoriqueRecent(12, $anneeActive);
 
         return response()->json([
             'success' => true,
-            'data' => [
+            'data'    => [
                 'statistiques' => [
-                    'nombre_eleves_inscrits' => $nombreElevesInscrits,
-                    'total_prevu' => $totalPrevu,
-                    'total_prevu_formatte' => number_format($totalPrevu, 0, ',', ' ') . ' Ar',
-                    'total_prevu_mois' => $totalPrevu,
-                    'total_prevu_mois_formatte' => number_format($totalPrevu, 0, ',', ' ') . ' Ar',
-                    'total_entree_mois' => $totalEntreeMois,
-                    'total_entree_mois_formatte' => number_format($totalEntreeMois, 0, ',', ' ') . ' Ar',
-                    'solde_net' => $soldeNet,
-                    'solde_net_formatte' => number_format($soldeNet, 0, ',', ' ') . ' Ar',
-                    'taux_recouvrement' => $tauxRecouvrement,
-                    'taux_recouvrement_formatte' => $tauxRecouvrement . '%',
+                    // Encaissements
+                    'total_encaissements'          => $totalEncaissements,
+                    'total_encaissements_formatte'  => $this->formatterMontant($totalEncaissements),
+                    'total_encaissements_mois'      => $totalEncaissementsMois,
+                    'total_encaissements_mois_formatte' => $this->formatterMontant($totalEncaissementsMois),
+
+                    // Décaissements (montant restant dû = non encore encaissé)
+                    'total_decaissements'           => $totalRestant,
+                    'total_decaissements_formatte'  => $this->formatterMontant($totalRestant),
+                    'total_du'                      => $totalDu,
+                    'total_du_formatte'             => $this->formatterMontant($totalDu),
+
+                    // Solde net = encaissements réels
+                    'solde_net'                     => $soldeNet,
+                    'solde_net_formatte'            => $this->formatterMontant($soldeNet),
+
+                    // Élèves
+                    'nombre_eleves_inscrits'        => $nombreElevesInscrits,
+
+                    // Taux de recouvrement
+                    'taux_recouvrement'             => $tauxRecouvrement,
+                    'taux_recouvrement_formatte'    => $tauxRecouvrement . '%',
+
+                    // Compatibilité anciens champs (ne pas casser le frontend existant)
+                    'total_prevu'                   => $totalDu,
+                    'total_prevu_formatte'          => $this->formatterMontant($totalDu),
+                    'total_prevu_mois'              => $totalEncaissementsMois,
+                    'total_prevu_mois_formatte'     => $this->formatterMontant($totalEncaissementsMois),
+                    'total_entree_mois'             => $totalEncaissementsMois,
+                    'total_entree_mois_formatte'    => $this->formatterMontant($totalEncaissementsMois),
                 ],
                 'transactions_recentes' => $transactionsRecentes,
-                'historique_recent' => $historiqueRecent,
-                'date_rappel' => $now->format('d/m/Y H:i:s'),
+                'historique_recent'     => $historiqueRecent,
+                'date_rappel'           => $now->format('d/m/Y H:i:s'),
+                'annee_scolaire'        => $anneeActive ? [
+                    'id'      => $anneeActive->id,
+                    'libelle' => $anneeActive->libelle,
+                    'statut'  => $anneeActive->statut,
+                ] : null,
             ],
         ]);
     }
 
-    private function getNombreElevesInscrits(): int
+    // ─────────────────────────────────────────────────────────────────────────
+    // CALCULS FINANCIERS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Total de tous les paiements effectivement reçus (encaissements réels).
+     */
+    private function getTotalEncaissements(?AnneeScolaire $anneeActive): float
     {
-        $anneeActive = $this->getAnneeActive();
+        if (!$anneeActive) return 0.0;
 
-        if (!$anneeActive) {
-            return 0;
-        }
-
-        return Inscription::where('id_annee_scolaire', $anneeActive->id)->count();
+        return (float) Paiement::whereHas('inscription', function ($q) use ($anneeActive) {
+            $q->where('id_annee_scolaire', $anneeActive->id);
+        })->sum('montant');
     }
 
-    private function getTotalPrevuAnnuelRestant(): float
+    /**
+     * Total prévu (somme de tous les montants dus) pour l'année.
+     */
+    private function getTotalDu(?AnneeScolaire $anneeActive): float
     {
-        $anneeActive = $this->getAnneeActive();
+        if (!$anneeActive) return 0.0;
 
-        if (!$anneeActive) {
-            return 0;
-        }
-
-        $resumeQuery = ResumePaiement::whereHas('inscription', function ($query) use ($anneeActive) {
-            $query->where('id_annee_scolaire', $anneeActive->id);
-        });
-
-        $totalDu = (float) $resumeQuery->sum('total_du');
-        $totalPaye = (float) ResumePaiement::whereHas('inscription', function ($query) use ($anneeActive) {
-            $query->where('id_annee_scolaire', $anneeActive->id);
-        })->sum('total_paye');
-
-        return max($totalDu - $totalPaye, 0);
+        return (float) ResumePaiement::whereHas('inscription', function ($q) use ($anneeActive) {
+            $q->where('id_annee_scolaire', $anneeActive->id);
+        })->sum('total_du');
     }
 
-    private function getTotalEntreeMois(int $mois, int $annee): float
+    /**
+     * Total restant à payer (impayés = décaissements attendus non reçus).
+     */
+    private function getTotalRestant(?AnneeScolaire $anneeActive): float
     {
-        $anneeActive = $this->getAnneeActive();
+        if (!$anneeActive) return 0.0;
 
-        if (!$anneeActive) {
-            return 0;
-        }
+        return (float) ResumePaiement::whereHas('inscription', function ($q) use ($anneeActive) {
+            $q->where('id_annee_scolaire', $anneeActive->id);
+        })->sum('total_restant');
+    }
 
-        return (float) Paiement::whereHas('inscription', function ($query) use ($anneeActive) {
-            $query->where('id_annee_scolaire', $anneeActive->id);
+    /**
+     * Encaissements du mois en cours.
+     */
+    private function getTotalEntreeMois(int $mois, int $annee, ?AnneeScolaire $anneeActive): float
+    {
+        if (!$anneeActive) return 0.0;
+
+        return (float) Paiement::whereHas('inscription', function ($q) use ($anneeActive) {
+            $q->where('id_annee_scolaire', $anneeActive->id);
         })
             ->whereMonth('date_paiement', $mois)
             ->whereYear('date_paiement', $annee)
             ->sum('montant');
     }
 
-    private function getSoldeNet(): float
+    /**
+     * Nombre d'élèves inscrits cette année.
+     */
+    private function getNombreElevesInscrits(?AnneeScolaire $anneeActive): int
     {
-        return $this->getTotalPrevuAnnuelRestant();
+        if (!$anneeActive) return 0;
+
+        return Inscription::where('id_annee_scolaire', $anneeActive->id)->count();
     }
 
-    private function getTransactionsRecentes(int $limit = 10)
+    /**
+     * Taux de recouvrement = (total encaissé / total dû) * 100.
+     */
+    private function getTauxRecouvrement(?AnneeScolaire $anneeActive, float $totalDu, float $totalEncaissements): float
     {
-        $anneeActive = $this->getAnneeActive();
+        if (!$anneeActive || $totalDu <= 0) return 0.0;
 
-        if (!$anneeActive) {
-            return collect();
-        }
+        return round(($totalEncaissements / $totalDu) * 100, 2);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TRANSACTIONS ET HISTORIQUE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function getTransactionsRecentes(int $limit, ?AnneeScolaire $anneeActive)
+    {
+        if (!$anneeActive) return collect();
 
         return Paiement::with(['inscription.eleve', 'typeFrais'])
-            ->whereHas('inscription', function ($query) use ($anneeActive) {
-                $query->where('id_annee_scolaire', $anneeActive->id);
+            ->whereHas('inscription', function ($q) use ($anneeActive) {
+                $q->where('id_annee_scolaire', $anneeActive->id);
             })
             ->orderBy('date_paiement', 'desc')
             ->limit($limit)
             ->get()
-            ->map(function ($paiement) {
-                return [
-                    'id' => $paiement->id,
-                    'reference' => $paiement->reference,
-                    'date_paiement' => $paiement->date_paiement?->format('d/m/Y'),
-                    'montant' => (float) $paiement->montant,
-                    'montant_formatte' => number_format((float) $paiement->montant, 0, ',', ' ') . ' Ar',
-                    'eleve' => $paiement->inscription && $paiement->inscription->eleve
-                        ? trim($paiement->inscription->eleve->nom . ' ' . $paiement->inscription->eleve->prenom)
-                        : 'Inconnu',
-                    'matricule' => $paiement->inscription && $paiement->inscription->eleve
-                        ? $paiement->inscription->eleve->matricule
-                        : null,
-                    'libelle' => $paiement->libelle ?? ($paiement->typeFrais?->libelle ?? 'Paiement divers'),
-                    'type' => $paiement->type ?? 'autre',
-                ];
-            });
+            ->map(fn ($p) => [
+                'id'               => $p->id,
+                'reference'        => $p->reference,
+                'date_paiement'    => $p->date_paiement?->format('d/m/Y'),
+                'montant'          => (float) $p->montant,
+                'montant_formatte' => $this->formatterMontant((float) $p->montant),
+                'eleve'            => $p->inscription?->eleve
+                    ? trim($p->inscription->eleve->nom . ' ' . $p->inscription->eleve->prenom)
+                    : 'Inconnu',
+                'matricule'        => $p->inscription?->eleve?->matricule,
+                'libelle'          => $p->libelle ?? ($p->typeFrais?->libelle ?? 'Paiement divers'),
+                'type'             => $p->type ?? 'autre',
+            ]);
     }
 
-    private function getHistoriqueRecent(int $limit = 12): array
+    private function getHistoriqueRecent(int $limit, ?AnneeScolaire $anneeActive): array
     {
-        $anneeActive = $this->getAnneeActive();
-
-        if (!$anneeActive) {
-            return [];
-        }
+        if (!$anneeActive) return [];
 
         $paiements = Paiement::with(['inscription.eleve'])
-            ->whereHas('inscription', function ($query) use ($anneeActive) {
-                $query->where('id_annee_scolaire', $anneeActive->id);
-            })
-            ->latest('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(function ($paiement) {
-                return [
-                    'type_evenement' => 'paiement',
-                    'date_evenement' => optional($paiement->created_at)->toIso8601String(),
-                    'titre' => 'Paiement enregistre',
-                    'description' => trim(($paiement->inscription?->eleve?->prenom ?? '') . ' ' . ($paiement->inscription?->eleve?->nom ?? '')),
-                    'reference_id' => $paiement->id,
-                ];
-            });
+            ->whereHas('inscription', fn ($q) => $q->where('id_annee_scolaire', $anneeActive->id))
+            ->latest('created_at')->limit($limit)->get()
+            ->map(fn ($p) => [
+                'type_evenement' => 'paiement',
+                'date_evenement' => optional($p->created_at)->toIso8601String(),
+                'titre'          => 'Paiement enregistre',
+                'description'    => trim(($p->inscription?->eleve?->prenom ?? '') . ' ' . ($p->inscription?->eleve?->nom ?? '')),
+                'montant'        => (float) $p->montant,
+                'reference_id'   => $p->id,
+            ]);
 
         $inscriptions = Inscription::with(['eleve', 'classe'])
             ->where('id_annee_scolaire', $anneeActive->id)
-            ->latest('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(function ($inscription) {
-                return [
-                    'type_evenement' => 'inscription',
-                    'date_evenement' => optional($inscription->created_at)->toIso8601String(),
-                    'titre' => 'Nouvel eleve inscrit',
-                    'description' => trim(($inscription->eleve?->prenom ?? '') . ' ' . ($inscription->eleve?->nom ?? '')) . ' - ' . ($inscription->classe?->nom_classe ?? ''),
-                    'reference_id' => $inscription->id,
-                ];
-            });
+            ->latest('created_at')->limit($limit)->get()
+            ->map(fn ($i) => [
+                'type_evenement' => 'inscription',
+                'date_evenement' => optional($i->created_at)->toIso8601String(),
+                'titre'          => 'Nouvel eleve inscrit',
+                'description'    => trim(($i->eleve?->prenom ?? '') . ' ' . ($i->eleve?->nom ?? '')) . ' - ' . ($i->classe?->nom_classe ?? ''),
+                'reference_id'   => $i->id,
+            ]);
 
         $notes = Notes::with(['inscription.eleve', 'matiere'])
-            ->whereHas('inscription', function ($query) use ($anneeActive) {
-                $query->where('id_annee_scolaire', $anneeActive->id);
-            })
-            ->latest('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(function ($note) {
-                return [
-                    'type_evenement' => 'note',
-                    'date_evenement' => optional($note->created_at)->toIso8601String(),
-                    'titre' => 'Nouvelle note saisie',
-                    'description' => trim(($note->inscription?->eleve?->prenom ?? '') . ' ' . ($note->inscription?->eleve?->nom ?? '')) . ' - ' . ($note->matiere?->nom ?? 'Matiere'),
-                    'reference_id' => $note->id,
-                ];
-            });
+            ->whereHas('inscription', fn ($q) => $q->where('id_annee_scolaire', $anneeActive->id))
+            ->latest('created_at')->limit($limit)->get()
+            ->map(fn ($n) => [
+                'type_evenement' => 'note',
+                'date_evenement' => optional($n->created_at)->toIso8601String(),
+                'titre'          => 'Nouvelle note saisie',
+                'description'    => trim(($n->inscription?->eleve?->prenom ?? '') . ' ' . ($n->inscription?->eleve?->nom ?? '')) . ' - ' . ($n->matiere?->nom ?? 'Matiere'),
+                'reference_id'   => $n->id,
+            ]);
 
         $bulletins = Bulletin::with(['inscription.eleve'])
-            ->whereHas('inscription', function ($query) use ($anneeActive) {
-                $query->where('id_annee_scolaire', $anneeActive->id);
-            })
-            ->latest('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(function ($bulletin) {
-                return [
-                    'type_evenement' => 'bulletin',
-                    'date_evenement' => optional($bulletin->created_at)->toIso8601String(),
-                    'titre' => 'Bulletin genere',
-                    'description' => trim(($bulletin->inscription?->eleve?->prenom ?? '') . ' ' . ($bulletin->inscription?->eleve?->nom ?? '')) . ' - ' . ($bulletin->periode ?? ''),
-                    'reference_id' => $bulletin->id,
-                ];
-            });
+            ->whereHas('inscription', fn ($q) => $q->where('id_annee_scolaire', $anneeActive->id))
+            ->latest('created_at')->limit($limit)->get()
+            ->map(fn ($b) => [
+                'type_evenement' => 'bulletin',
+                'date_evenement' => optional($b->created_at)->toIso8601String(),
+                'titre'          => 'Bulletin genere',
+                'description'    => trim(($b->inscription?->eleve?->prenom ?? '') . ' ' . ($b->inscription?->eleve?->nom ?? '')) . ' - ' . ($b->periode ?? ''),
+                'reference_id'   => $b->id,
+            ]);
 
         return $paiements
             ->concat($inscriptions)
@@ -218,31 +254,23 @@ class CaissierController extends Controller
             ->all();
     }
 
-    private function getTauxRecouvrement(): float
-    {
-        $anneeActive = $this->getAnneeActive();
-
-        if (!$anneeActive) {
-            return 0;
-        }
-
-        $totalPaye = (float) Paiement::whereHas('inscription', function ($query) use ($anneeActive) {
-            $query->where('id_annee_scolaire', $anneeActive->id);
-        })->sum('montant');
-
-        $totalDu = (float) ResumePaiement::whereHas('inscription', function ($query) use ($anneeActive) {
-            $query->where('id_annee_scolaire', $anneeActive->id);
-        })->sum('total_du');
-
-        if ($totalDu <= 0) {
-            return 0;
-        }
-
-        return round(($totalPaye / $totalDu) * 100, 2);
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // UTILITAIRES
+    // ─────────────────────────────────────────────────────────────────────────
 
     private function getAnneeActive(): ?AnneeScolaire
     {
         return AnneeScolaire::where('statut', 'en_cours')->first();
+    }
+
+    private function formatterMontant(float $montant): string
+    {
+        if ($montant >= 1_000_000) {
+            return 'Ar ' . number_format($montant / 1_000_000, 1, '.', '') . 'M';
+        }
+        if ($montant >= 1_000) {
+            return 'Ar ' . number_format($montant / 1_000, 1, '.', '') . 'K';
+        }
+        return 'Ar ' . number_format($montant, 0, ',', ' ');
     }
 }

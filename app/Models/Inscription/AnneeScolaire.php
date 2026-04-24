@@ -12,12 +12,18 @@ class AnneeScolaire extends Model
         'date_debut',
         'date_fin',
         'statut',
+        'date_debut_inscription',
+        'date_fin_inscription',
     ];
 
     protected $casts = [
-        'date_debut' => 'date',
-        'date_fin' => 'date',
+        'date_debut'             => 'date',
+        'date_fin'               => 'date',
+        'date_debut_inscription' => 'date',
+        'date_fin_inscription'   => 'date',
     ];
+
+    protected $appends = ['libelle'];
 
     public function getLibelleAttribute(): string
     {

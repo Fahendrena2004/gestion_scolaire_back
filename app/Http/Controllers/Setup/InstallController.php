@@ -115,10 +115,11 @@ class InstallController extends Controller
 
             for ($i = 0; $i < $nbDivisions; $i++) {
                 $classe = Classe::create([
-                    'nom_classe' => $niveau->nom_niveau . ' ' . $lettres[$i],
-                    'niveau_id' => $niveau->id,
-                    'code_division' => $lettres[$i],
-                    'effectif' => 0,
+                    'nom_classe'      => $niveau->nom_niveau . ' ' . $lettres[$i],
+                    'niveau_id'       => $niveau->id,
+                    'code_division'   => $lettres[$i],
+                    'effectif'        => 0,
+                    'max_effectif'    => 50,
                     'anneeScolaire_id' => $anneeActive->id,
                 ]);
 

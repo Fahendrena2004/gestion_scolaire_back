@@ -111,7 +111,7 @@ class RouteCoverageSwagger
     public function setupReset() {}
 
     #[OA\Get(
-        path: '/api/inscription/annee-scolaires',
+        path: '/api/inscription/annee-scolaire',
         tags: ['Annees Scolaires'],
         summary: 'Lister les annees scolaires',
         security: [['bearerAuth' => []]],
@@ -120,16 +120,43 @@ class RouteCoverageSwagger
     public function anneeIndex() {}
 
     #[OA\Get(
-        path: '/api/inscription/annee-scolaires/active',
+        path: '/api/inscription/annee-scolaire/active',
         tags: ['Annees Scolaires'],
         summary: 'Recuperer l annee scolaire active',
+        description: 'Retourne l année scolaire avec le statut "en_cours". Retourne une erreur 404 si aucune année n est active ou si la période d inscription est fermée.',
         security: [['bearerAuth' => []]],
-        responses: [new OA\Response(response: 200, description: 'Annee scolaire active')]
+        responses: [
+            new OA\Response(
+                response: 200, 
+                description: 'Annee scolaire active et periode d inscription ouverte',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'data', type: 'object', properties: [
+                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                            new OA\Property(property: 'statut', type: 'string', example: 'en_cours'),
+                            new OA\Property(property: 'est_inscription_ouverte', type: 'boolean', example: true),
+                            new OA\Property(property: 'libelle', type: 'string', example: '2026-09-01 - 2027-06-30'),
+                        ])
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404, 
+                description: 'Inscription non trouvee (active ou periode fermee)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Inscription non trouvée (la période d\'inscription est fermée pour cette année scolaire)'),
+                    ]
+                )
+            )
+        ]
     )]
     public function anneeActive() {}
 
     #[OA\Post(
-        path: '/api/inscription/annee-scolaires',
+        path: '/api/inscription/annee-scolaire',
         tags: ['Annees Scolaires'],
         summary: 'Creer une annee scolaire',
         security: [['bearerAuth' => []]],
@@ -140,7 +167,7 @@ class RouteCoverageSwagger
                 properties: [
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
-                    new OA\Property(property: 'statut', type: 'string', example: 'en_cours'),
+                    new OA\Property(property: 'statut', type: 'string', enum: ['en_cours', 'termine', 'planifie', 'actif'], description: 'Le statut "actif" est converti automatiquement en "en_cours"', example: 'en_cours'),
                     new OA\Property(property: 'date_debut_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(property: 'date_fin_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(
@@ -191,7 +218,7 @@ class RouteCoverageSwagger
     public function anneeStore() {}
 
     #[OA\Get(
-        path: '/api/inscription/annee-scolaires/{id}',
+        path: '/api/inscription/annee-scolaire/{id}',
         tags: ['Annees Scolaires'],
         summary: 'Afficher une annee scolaire',
         security: [['bearerAuth' => []]],
@@ -200,13 +227,22 @@ class RouteCoverageSwagger
         ],
         responses: [
             new OA\Response(response: 200, description: 'Detail de l annee scolaire'),
-            new OA\Response(response: 404, description: 'Annee non trouvee'),
+            new OA\Response(
+                response: 404, 
+                description: 'Annee non trouvee',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Année scolaire non trouvée'),
+                    ]
+                )
+            ),
         ]
     )]
     public function anneeShow() {}
 
     #[OA\Put(
-        path: '/api/inscription/annee-scolaires/{id}',
+        path: '/api/inscription/annee-scolaire/{id}',
         tags: ['Annees Scolaires'],
         summary: 'Modifier une annee scolaire',
         security: [['bearerAuth' => []]],
@@ -219,7 +255,7 @@ class RouteCoverageSwagger
                 properties: [
                     new OA\Property(property: 'date_debut', type: 'string', format: 'date'),
                     new OA\Property(property: 'date_fin', type: 'string', format: 'date'),
-                    new OA\Property(property: 'statut', type: 'string', example: 'planifie'),
+                    new OA\Property(property: 'statut', type: 'string', enum: ['en_cours', 'termine', 'planifie', 'actif'], example: 'planifie'),
                     new OA\Property(property: 'date_debut_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(property: 'date_fin_inscription', type: 'string', format: 'date', nullable: true),
                     new OA\Property(
@@ -271,7 +307,7 @@ class RouteCoverageSwagger
     public function anneeUpdate() {}
 
     #[OA\Delete(
-        path: '/api/inscription/annee-scolaires/{id}',
+        path: '/api/inscription/annee-scolaire/{id}',
         tags: ['Annees Scolaires'],
         summary: 'Supprimer une annee scolaire',
         security: [['bearerAuth' => []]],

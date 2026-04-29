@@ -95,7 +95,7 @@ class InscriptionController extends Controller
         if (!$anneeActive) {
             return response()->json([
                 'success' => false,
-                'message' => 'Aucune annee scolaire active.',
+                'message' => 'Inscription non trouvée (aucune année scolaire active).',
             ], 404);
         }
 

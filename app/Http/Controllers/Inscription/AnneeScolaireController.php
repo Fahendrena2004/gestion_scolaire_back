@@ -29,6 +29,11 @@ class AnneeScolaireController extends Controller
 
     public function store(Request $request)
     {
+        // Normaliser le statut "actif" vers "en_cours" pour la compatibilité
+        if ($request->statut === 'actif') {
+            $request->merge(['statut' => 'en_cours']);
+        }
+
         $validator = $this->validator($request);
 
         if ($validator->fails()) {
@@ -68,7 +73,14 @@ class AnneeScolaireController extends Controller
 
     public function show($id)
     {
-        $annee = $this->chargerConfiguration($id);
+        try {
+            $annee = $this->chargerConfiguration($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Année scolaire non trouvée',
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
@@ -78,6 +90,11 @@ class AnneeScolaireController extends Controller
 
     public function update(Request $request, $id)
     {
+        // Normaliser le statut "actif" vers "en_cours" pour la compatibilité
+        if ($request->statut === 'actif') {
+            $request->merge(['statut' => 'en_cours']);
+        }
+
         $annee = AnneeScolaire::findOrFail($id);
         $validator = $this->validator($request, true);
 
@@ -141,9 +158,26 @@ class AnneeScolaireController extends Controller
     {
         $annee = AnneeScolaire::where('statut', 'en_cours')->first();
 
+        if (!$annee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inscription non trouvée (aucune année scolaire active)',
+            ], 404);
+        }
+
+        $config = $this->chargerConfiguration($annee->id);
+
+        if (!$config->est_inscription_ouverte) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inscription non trouvée (la période d\'inscription est fermée pour cette année scolaire)',
+                'data' => $config
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
-            'data' => $annee ? $this->chargerConfiguration($annee->id) : null,
+            'data' => $config,
         ]);
     }
 

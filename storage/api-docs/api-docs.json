@@ -4222,13 +4222,13 @@
                 ]
             }
         },
-        "/api/inscription/annee-scolaires": {
+        "/api/inscription/annee-scolaire": {
             "get": {
                 "tags": [
                     "Annees Scolaires"
                 ],
                 "summary": "Lister les annees scolaires",
-                "operationId": "f28a1f2d93588f82454d263745888645",
+                "operationId": "52842328479a4bec249cf8f90145d9ac",
                 "responses": {
                     "200": {
                         "description": "Liste des annees scolaires"
@@ -4245,7 +4245,7 @@
                     "Annees Scolaires"
                 ],
                 "summary": "Creer une annee scolaire",
-                "operationId": "603964498379cd7b2cdaea4d2349e206",
+                "operationId": "10662f6c45c0272b4b55abec11543b03",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -4266,8 +4266,15 @@
                                         "format": "date"
                                     },
                                     "statut": {
+                                        "description": "Le statut \"actif\" est converti automatiquement en \"en_cours\"",
                                         "type": "string",
-                                        "example": "en_cours"
+                                        "example": "en_cours",
+                                        "enum": [
+                                            "en_cours",
+                                            "termine",
+                                            "planifie",
+                                            "actif"
+                                        ]
                                     },
                                     "date_debut_inscription": {
                                         "type": "string",
@@ -4376,16 +4383,71 @@
                 ]
             }
         },
-        "/api/inscription/annee-scolaires/active": {
+        "/api/inscription/annee-scolaire/active": {
             "get": {
                 "tags": [
                     "Annees Scolaires"
                 ],
                 "summary": "Recuperer l annee scolaire active",
-                "operationId": "c91fcdd4b57902c531ffee1db3e30caf",
+                "description": "Retourne l année scolaire avec le statut \"en_cours\". Retourne une erreur 404 si aucune année n est active ou si la période d inscription est fermée.",
+                "operationId": "77ed346bfcc9b8d9bfb3547e7c270806",
                 "responses": {
                     "200": {
-                        "description": "Annee scolaire active"
+                        "description": "Annee scolaire active et periode d inscription ouverte",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "statut": {
+                                                    "type": "string",
+                                                    "example": "en_cours"
+                                                },
+                                                "est_inscription_ouverte": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                },
+                                                "libelle": {
+                                                    "type": "string",
+                                                    "example": "2026-09-01 - 2027-06-30"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Inscription non trouvee (active ou periode fermee)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Inscription non trouvée (la période d'inscription est fermée pour cette année scolaire)"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -4395,13 +4457,13 @@
                 ]
             }
         },
-        "/api/inscription/annee-scolaires/{id}": {
+        "/api/inscription/annee-scolaire/{id}": {
             "get": {
                 "tags": [
                     "Annees Scolaires"
                 ],
                 "summary": "Afficher une annee scolaire",
-                "operationId": "c98085b1f0bf12b617d325311da4c0b9",
+                "operationId": "191ff9fc6b86c1ec61df379bb1289bc6",
                 "parameters": [
                     {
                         "name": "id",
@@ -4418,7 +4480,24 @@
                         "description": "Detail de l annee scolaire"
                     },
                     "404": {
-                        "description": "Annee non trouvee"
+                        "description": "Annee non trouvee",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Année scolaire non trouvée"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -4432,7 +4511,7 @@
                     "Annees Scolaires"
                 ],
                 "summary": "Modifier une annee scolaire",
-                "operationId": "9c7104d1f59b827a47715c21f8a3f51f",
+                "operationId": "1768a0f23cb1d37fcce691f6f535c415",
                 "parameters": [
                     {
                         "name": "id",
@@ -4460,7 +4539,13 @@
                                     },
                                     "statut": {
                                         "type": "string",
-                                        "example": "planifie"
+                                        "example": "planifie",
+                                        "enum": [
+                                            "en_cours",
+                                            "termine",
+                                            "planifie",
+                                            "actif"
+                                        ]
                                     },
                                     "date_debut_inscription": {
                                         "type": "string",
@@ -4578,7 +4663,7 @@
                     "Annees Scolaires"
                 ],
                 "summary": "Supprimer une annee scolaire",
-                "operationId": "b952e6127c5c4f90a45bd94e5926afa5",
+                "operationId": "1641b214169bff9c0da1c10ad0990c52",
                 "parameters": [
                     {
                         "name": "id",

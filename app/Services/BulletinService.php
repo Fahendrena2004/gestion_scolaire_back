@@ -36,11 +36,13 @@ class BulletinService
 
         foreach ($matieres as $matiere) {
             $moyenne = $this->calculerMoyenneMatiere($inscriptionId, $matiere->id, $periode);
-            $moyennes[$matiere->id] = [
-                'matiere' => $matiere,
-                'moyenne' => $moyenne,
-                'coefficient' => $matiere->coefficient
-            ];
+            if ($moyenne > 0) {
+                $moyennes[$matiere->id] = [
+                    'matiere' => $matiere,
+                    'moyenne' => $moyenne,
+                    'coefficient' => $matiere->coefficient
+                ];
+            }
         }
 
         return $moyennes;
@@ -54,10 +56,8 @@ class BulletinService
         $totalCoefficients = 0;
 
         foreach ($moyennesParMatiere as $data) {
-            if ($data['moyenne'] > 0) {
-                $totalPondere += $data['moyenne'] * $data['coefficient'];
-                $totalCoefficients += $data['coefficient'];
-            }
+            $totalPondere += $data['moyenne'] * $data['coefficient'];
+            $totalCoefficients += $data['coefficient'];
         }
 
         return $totalCoefficients > 0 ? round($totalPondere / $totalCoefficients, 2) : 0;
@@ -98,46 +98,53 @@ class BulletinService
             return 0;
         }
         
-        $moyenneEleve = $this->calculerMoyenneGenerale($inscriptionId, $periode);
-        
         $autresInscriptions = Inscription::where('id_classe', $inscription->id_classe)
             ->where('id_annee_scolaire', $inscription->id_annee_scolaire)
             ->get();
         
         $moyennes = [];
         foreach ($autresInscriptions as $other) {
-            $moyennes[$other->id] = $this->calculerMoyenneGenerale($other->id, $periode);
+            $moy = $this->calculerMoyenneGenerale($other->id, $periode);
+            if ($moy > 0) {
+                $moyennes[$other->id] = $moy;
+            }
         }
         
         arsort($moyennes);
         
         $rang = 1;
+        $count = 0;
+        $prevMoy = -1;
         foreach ($moyennes as $id => $moy) {
-            if ($id == $inscriptionId) {
-                return $rang;
+            $count++;
+            if ($moy != $prevMoy) {
+                $currentRang = $count;
             }
-            $rang++;
+            if ($id == $inscriptionId) {
+                return $currentRang;
+            }
+            $prevMoy = $moy;
         }
         
-        return $rang;
+        return 0;
     }
 
-    public function genererBulletin($inscriptionId, $periode)
+    public function genererBulletin($inscriptionId, $periode, $forceUpdate = true)
     {
         try {
             DB::beginTransaction();
             
+            $inscription = Inscription::find($inscriptionId);
+            if (!$inscription) {
+                throw new \Exception('Inscription non trouvée');
+            }
+
             $bulletinExistant = Bulletin::where('inscription_id', $inscriptionId)
                 ->where('periode', $periode)
                 ->first();
             
-            if ($bulletinExistant) {
+            if ($bulletinExistant && !$forceUpdate) {
                 throw new \Exception('Un bulletin existe déjà pour cette période.');
-            }
-            
-            $inscription = Inscription::find($inscriptionId);
-            if (!$inscription) {
-                throw new \Exception('Inscription non trouvée');
             }
             
             $moyenneGenerale = $this->calculerMoyenneGenerale($inscriptionId, $periode);
@@ -149,7 +156,7 @@ class BulletinService
             $rang = $this->determinerRang($inscriptionId, $periode);
             $decision = $moyenneGenerale >= 10 ? 'ADMIS' : ($moyenneGenerale >= 8 ? 'REPRISE' : 'REDOUBLANT');
             
-            $bulletin = Bulletin::create([
+            $data = [
                 'inscription_id' => $inscriptionId,
                 'moyenne_eleve' => $moyenneGenerale,
                 'moyenne_classe' => $moyenneClasse,
@@ -157,20 +164,27 @@ class BulletinService
                 'periode' => $periode,
                 'decision' => $decision,
                 'appreciation' => $this->genererAppreciation($moyenneGenerale, $rang)
-            ]);
+            ];
+
+            if ($bulletinExistant) {
+                $bulletinExistant->update($data);
+                $bulletin = $bulletinExistant;
+                // Supprimer les anciens détails pour les recréer
+                DetailBulletins::where('bulletin_id', $bulletin->id)->delete();
+            } else {
+                $bulletin = Bulletin::create($data);
+            }
             
             $moyennesParMatiere = $this->calculerMoyennesParMatiere($inscriptionId, $periode);
             
-            foreach ($moyennesParMatiere as $matiereId => $data) {
-                if ($data['moyenne'] > 0) {
-                    DetailBulletins::create([
-                        'bulletin_id' => $bulletin->id,
-                        'matiere_id' => $matiereId,
-                        'moyenne_matiere' => $data['moyenne'],
-                        'rang_matiere' => 0,
-                        'appreciation' => $this->genererAppreciationMatiere($data['moyenne'])
-                    ]);
-                }
+            foreach ($moyennesParMatiere as $matiereId => $details) {
+                DetailBulletins::create([
+                    'bulletin_id' => $bulletin->id,
+                    'matiere_id' => $matiereId,
+                    'moyenne_matiere' => $details['moyenne'],
+                    'rang_matiere' => $this->calculerRangMatiere($inscription->id_classe, $inscription->id_annee_scolaire, $matiereId, $periode, $details['moyenne']),
+                    'appreciation' => $this->genererAppreciationMatiere($details['moyenne'])
+                ]);
             }
             
             DB::commit();
@@ -179,9 +193,35 @@ class BulletinService
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erreur: ' . $e->getMessage());
+            Log::error('Erreur generation bulletin: ' . $e->getMessage());
             throw $e;
         }
+    }
+
+    public function calculerRangMatiere($classeId, $anneeScolaireId, $matiereId, $periode, $moyenneEleve)
+    {
+        $inscriptions = Inscription::where('id_classe', $classeId)
+            ->where('id_annee_scolaire', $anneeScolaireId)
+            ->get();
+
+        $moyennes = [];
+        foreach ($inscriptions as $ins) {
+            $moy = $this->calculerMoyenneMatiere($ins->id, $matiereId, $periode);
+            if ($moy > 0) {
+                $moyennes[] = $moy;
+            }
+        }
+
+        rsort($moyennes);
+        $uniqueMoyennes = array_values(array_unique($moyennes));
+        
+        foreach ($uniqueMoyennes as $index => $m) {
+            if ($m == $moyenneEleve) {
+                return $index + 1;
+            }
+        }
+
+        return 0;
     }
 
     private function genererAppreciation($moyenne, $rang)
@@ -201,22 +241,101 @@ class BulletinService
         if ($moyenne >= 10) return "Passable.";
         return "Insuffisant.";
     }
+
     public function genererBulletinsClasse($classeId, $periode, $anneeScolaireId)
-{
-    $inscriptions = Inscription::where('id_classe', $classeId)
-        ->where('id_annee_scolaire', $anneeScolaireId)
-        ->get();
-    
-    $resultats = [];
-    foreach ($inscriptions as $inscription) {
-        try {
-            $bulletin = $this->genererBulletin($inscription->id, $periode);
-            $resultats[$inscription->id] = ['success' => true, 'bulletin' => $bulletin];
-        } catch (\Exception $e) {
-            $resultats[$inscription->id] = ['success' => false, 'error' => $e->getMessage()];
+    {
+        $inscriptions = Inscription::where('id_classe', $classeId)
+            ->where('id_annee_scolaire', $anneeScolaireId)
+            ->get();
+        
+        if ($inscriptions->isEmpty()) {
+            return [];
         }
+
+        // Pré-calculer les moyennes générales pour tout le monde
+        $moyennesG = [];
+        foreach ($inscriptions as $ins) {
+            $moy = $this->calculerMoyenneGenerale($ins->id, $periode);
+            if ($moy > 0) {
+                $moyennesG[$ins->id] = $moy;
+            }
+        }
+
+        // Calculer la moyenne de classe
+        $moyenneClasse = count($moyennesG) > 0 ? round(array_sum($moyennesG) / count($moyennesG), 2) : 0;
+
+        // Trier pour les rangs
+        arsort($moyennesG);
+        $rangs = [];
+        $count = 0;
+        $currentRang = 0;
+        $prevMoy = -1;
+        foreach ($moyennesG as $id => $moy) {
+            $count++;
+            if ($moy != $prevMoy) {
+                $currentRang = $count;
+            }
+            $rangs[$id] = $currentRang;
+            $prevMoy = $moy;
+        }
+        
+        $resultats = [];
+        foreach ($inscriptions as $inscription) {
+            try {
+                // Pour la classe, on peut optimiser en passant les rangs déjà calculés
+                // Mais pour garder la logique propre, on appelle genererBulletin ou on duplique un peu
+                // Ici je vais appeler une version légèrement modifiée ou juste faire le save direct
+                
+                $bulletinExistant = Bulletin::where('inscription_id', $inscription->id)
+                    ->where('periode', $periode)
+                    ->first();
+                
+                $moyEleve = $moyennesG[$inscription->id] ?? 0;
+                $rangEleve = $rangs[$inscription->id] ?? 0;
+                $decision = $moyEleve >= 10 ? 'ADMIS' : ($moyEleve >= 8 ? 'REPRISE' : 'REDOUBLANT');
+
+                $data = [
+                    'inscription_id' => $inscription->id,
+                    'moyenne_eleve' => $moyEleve,
+                    'moyenne_classe' => $moyenneClasse,
+                    'rang' => $rangEleve,
+                    'periode' => $periode,
+                    'decision' => $decision,
+                    'appreciation' => $this->genererAppreciation($moyEleve, $rangEleve)
+                ];
+
+                DB::beginTransaction();
+                if ($bulletinExistant) {
+                    $bulletinExistant->update($data);
+                    $bulletin = $bulletinExistant;
+                    DetailBulletins::where('bulletin_id', $bulletin->id)->delete();
+                } else {
+                    $bulletin = Bulletin::create($data);
+                }
+
+                $moyennesParMatiere = $this->calculerMoyennesParMatiere($inscription->id, $periode);
+                foreach ($moyennesParMatiere as $matiereId => $details) {
+                    DetailBulletins::create([
+                        'bulletin_id' => $bulletin->id,
+                        'matiere_id' => $matiereId,
+                        'moyenne_matiere' => $details['moyenne'],
+                        'rang_matiere' => $this->calculerRangMatiere($classeId, $anneeScolaireId, $matiereId, $periode, $details['moyenne']),
+                        'appreciation' => $this->genererAppreciationMatiere($details['moyenne'])
+                    ]);
+                }
+                DB::commit();
+
+                $resultats[$inscription->id] = [
+                    'success' => true, 
+                    'bulletin' => Bulletin::with(['inscription.eleve', 'detailBulletins.matiere'])->find($bulletin->id)
+                ];
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $resultats[$inscription->id] = ['success' => false, 'error' => $e->getMessage()];
+            }
+        }
+        
+        return $resultats;
     }
-    
-    return $resultats;
-}
+
 }

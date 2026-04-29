@@ -188,9 +188,32 @@ class BulletinController extends Controller
             ->orderBy('rang', 'asc')
             ->get();
 
+        if ($bulletins->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'stats' => [
+                    'moyenne_classe' => 0,
+                    'effectif' => 0,
+                    'admis' => 0,
+                    'taux_reussite' => 0
+                ]
+            ]);
+        }
+
+        $moyenneClasse = $bulletins->avg('moyenne_eleve');
+        $effectif = $bulletins->count();
+        $admis = $bulletins->where('decision', 'ADMIS')->count();
+
         return response()->json([
             'success' => true,
             'data' => $bulletins,
+            'stats' => [
+                'moyenne_classe' => round($moyenneClasse, 2),
+                'effectif' => $effectif,
+                'admis' => $admis,
+                'taux_reussite' => round(($admis / $effectif) * 100, 2) . '%'
+            ]
         ]);
     }
 

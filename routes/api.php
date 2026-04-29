@@ -93,17 +93,32 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('inscription')->group(function () {
             // Années scolaires (CRUD admin)
             Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
+            Route::get('/annee-scolaire', [AnneeScolaireController::class, 'index']); // Alias
+            
             Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
+            Route::get('/annee-scolaire/active', [AnneeScolaireController::class, 'getActive']); // Alias
+            
             Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
-            Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show']);
-            Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update']);
-            Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy']);
+            Route::post('/annee-scolaire', [AnneeScolaireController::class, 'store']); // Alias
+            
+            Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id');
+            Route::get('/annee-scolaire/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id'); // Alias
+            
+            Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id');
+            Route::put('/annee-scolaire/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id'); // Alias
+            
+            Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id');
+            Route::delete('/annee-scolaire/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id'); // Alias
 
             // Types de frais (CRUD admin)
             Route::get('/frais/types', [TypeFraisController::class, 'index']);
+            Route::get('/frais/type', [TypeFraisController::class, 'index']); // Alias
             Route::post('/frais/types', [TypeFraisController::class, 'store']);
-            Route::put('/frais/types/{id}', [TypeFraisController::class, 'update']);
-            Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy']);
+            Route::post('/frais/type', [TypeFraisController::class, 'store']); // Alias
+            Route::put('/frais/types/{id}', [TypeFraisController::class, 'update'])->whereNumber('id');
+            Route::put('/frais/type/{id}', [TypeFraisController::class, 'update'])->whereNumber('id'); // Alias
+            Route::delete('/frais/types/{id}', [TypeFraisController::class, 'destroy'])->whereNumber('id');
+            Route::delete('/frais/type/{id}', [TypeFraisController::class, 'destroy'])->whereNumber('id'); // Alias
         });
 
         // Staff admin
@@ -216,8 +231,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/eleve/{inscriptionId}', [BulletinController::class, 'getByEleve']);
             Route::get('/classe', [BulletinController::class, 'getByClass']);
             Route::get('/{id}', [BulletinController::class, 'show']);
-            Route::put('/{id}/appreciation', [BulletinController::class, 'updateAppreciation']);
-            Route::delete('/{id}', [BulletinController::class, 'destroy']);
             Route::get('/{id}/pdf', [BulletinController::class, 'exportPDF']);
         });
 

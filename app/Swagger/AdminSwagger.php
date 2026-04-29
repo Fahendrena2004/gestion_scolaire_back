@@ -10,8 +10,13 @@ class AdminSwagger
         path: '/api/admin/utilisateurs',
         tags: ['Admin - Utilisateurs'],
         summary: 'Lister les utilisateurs',
-        description: 'Retourne la liste des utilisateurs. Accessible uniquement a un admin authentifie via Sanctum.',
+        description: 'Retourne la liste des utilisateurs avec filtres optionnels (role, status, search). Accessible uniquement a un admin authentifie via Sanctum.',
         security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'role', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['admin', 'caissier', 'professeur', 'secretaire'], example: 'admin')),
+            new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['actif', 'inactif'], example: 'actif')),
+            new OA\Parameter(name: 'search', in: 'query', required: false, schema: new OA\Schema(type: 'string', example: 'Jean')),
+        ],
         responses: [
             new OA\Response(
                 response: 200,
@@ -31,6 +36,7 @@ class AdminSwagger
                                     new OA\Property(property: 'telephone', type: 'string', nullable: true, example: '0340011223'),
                                     new OA\Property(property: 'role', type: 'string', example: 'admin'),
                                     new OA\Property(property: 'status', type: 'string', example: 'actif'),
+                                    new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-04-15T10:00:00Z'),
                                 ],
                                 type: 'object'
                             )
@@ -44,6 +50,179 @@ class AdminSwagger
         ]
     )]
     public function utilisateursIndex() {}
+
+    #[OA\Post(
+        path: '/api/admin/utilisateurs',
+        tags: ['Admin - Utilisateurs'],
+        summary: 'Creer un utilisateur',
+        description: 'Cree un nouvel utilisateur. Accessible uniquement a un admin.',
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['nom', 'prenom', 'email', 'password', 'role', 'status'],
+                properties: [
+                    new OA\Property(property: 'nom', type: 'string', example: 'Rakoto'),
+                    new OA\Property(property: 'prenom', type: 'string', example: 'Jean'),
+                    new OA\Property(property: 'email', type: 'string', example: 'jean.rakoto@ecole.local'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+                    new OA\Property(property: 'telephone', type: 'string', nullable: true, example: '0340011223'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'caissier', 'professeur', 'secretaire'], example: 'caissier'),
+                    new OA\Property(property: 'status', type: 'string', enum: ['actif', 'inactif'], example: 'actif'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Utilisateur cree avec succes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Utilisateur cree avec succes'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Erreur de validation'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin'),
+        ]
+    )]
+    public function utilisateursStore() {}
+
+    #[OA\Get(
+        path: '/api/admin/utilisateurs/statistiques',
+        tags: ['Admin - Utilisateurs'],
+        summary: 'Consulter les statistiques des utilisateurs',
+        description: 'Retourne les statistiques globales (total, actifs, inactifs, par role). Accessible uniquement a un admin.',
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Statistiques des utilisateurs',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'data', type: 'object', properties: [
+                            new OA\Property(property: 'total', type: 'integer', example: 10),
+                            new OA\Property(property: 'actifs', type: 'integer', example: 8),
+                            new OA\Property(property: 'inactifs', type: 'integer', example: 2),
+                            new OA\Property(property: 'par_role', type: 'object', example: ['admin' => 2, 'caissier' => 3, 'professeur' => 5]),
+                        ]),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin'),
+        ]
+    )]
+    public function utilisateursStatistiques() {}
+
+    #[OA\Get(
+        path: '/api/admin/utilisateurs/{id}',
+        tags: ['Admin - Utilisateurs'],
+        summary: 'Afficher un utilisateur',
+        description: 'Retourne le detail d un utilisateur. Accessible uniquement a un admin.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Detail de l utilisateur',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'data', type: 'object', properties: [
+                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                            new OA\Property(property: 'nom', type: 'string', example: 'Rakoto'),
+                            new OA\Property(property: 'prenom', type: 'string', example: 'Jean'),
+                            new OA\Property(property: 'email', type: 'string', example: 'admin@gmail.com'),
+                            new OA\Property(property: 'telephone', type: 'string', nullable: true),
+                            new OA\Property(property: 'role', type: 'string', example: 'admin'),
+                            new OA\Property(property: 'status', type: 'string', example: 'actif'),
+                        ]),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin'),
+            new OA\Response(response: 404, description: 'Utilisateur non trouve'),
+        ]
+    )]
+    public function utilisateursShow() {}
+
+    #[OA\Put(
+        path: '/api/admin/utilisateurs/{id}',
+        tags: ['Admin - Utilisateurs'],
+        summary: 'Modifier un utilisateur',
+        description: 'Met a jour un utilisateur existant. Accessible uniquement a un admin.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'nom', type: 'string', example: 'Rakoto'),
+                    new OA\Property(property: 'prenom', type: 'string', example: 'Jean'),
+                    new OA\Property(property: 'email', type: 'string', example: 'jean.rakoto@ecole.local'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'newpassword123'),
+                    new OA\Property(property: 'telephone', type: 'string', nullable: true),
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin', 'caissier', 'professeur', 'secretaire']),
+                    new OA\Property(property: 'status', type: 'string', enum: ['actif', 'inactif']),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Utilisateur modifie avec succes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Utilisateur mis a jour avec succes'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Erreur de validation'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin'),
+            new OA\Response(response: 404, description: 'Utilisateur non trouve'),
+        ]
+    )]
+    public function utilisateursUpdate() {}
+
+    #[OA\Delete(
+        path: '/api/admin/utilisateurs/{id}',
+        tags: ['Admin - Utilisateurs'],
+        summary: 'Supprimer un utilisateur',
+        description: 'Supprime un utilisateur existant. Accessible uniquement a un admin. Impossible de supprimer son propre compte.',
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Utilisateur supprime avec succes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Utilisateur supprime avec succes'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces reserve a l admin ou suppression de son propre compte'),
+            new OA\Response(response: 404, description: 'Utilisateur non trouve'),
+        ]
+    )]
+    public function utilisateursDestroy() {}
 
     #[OA\Get(
         path: '/api/admin/staffs',

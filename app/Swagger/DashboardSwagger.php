@@ -66,7 +66,9 @@ class DashboardSwagger
         summary: "Consulter les statistiques d une annee scolaire",
         security: [["bearerAuth" => []]],
         parameters: [
-            new OA\Parameter(name: "anneeId", in: "path", required: true, schema: new OA\Schema(type: "integer", example: 1))
+            new OA\Parameter(name: "anneeId", in: "path", required: true, schema: new OA\Schema(type: "integer", example: 1)),
+            new OA\Parameter(name: "niveau_id", in: "query", required: false, schema: new OA\Schema(type: "integer")),
+            new OA\Parameter(name: "classe_id", in: "query", required: false, schema: new OA\Schema(type: "integer"))
         ],
         responses: [
             new OA\Response(response: 200, description: "Statistiques recuperees")
@@ -104,4 +106,20 @@ class DashboardSwagger
         ]
     )]
     public function recapJournalCaisse() {}
+
+    #[OA\Get(
+        path: "/api/dashboard/recapitulatif/annees-scolaires/{anneeId}/recherche-etudiant",
+        tags: ["Dashboard"],
+        summary: "Rechercher un etudiant dans une annee scolaire",
+        security: [["bearerAuth" => []]],
+        parameters: [
+            new OA\Parameter(name: "anneeId", in: "path", required: true, schema: new OA\Schema(type: "integer", example: 1)),
+            new OA\Parameter(name: "nom", in: "query", required: false, schema: new OA\Schema(type: "string", example: "Rakoto")),
+            new OA\Parameter(name: "matricule", in: "query", required: false, schema: new OA\Schema(type: "string", example: "ETU001"))
+        ],
+        responses: [
+            new OA\Response(response: 200, description: "Liste des etudiants trouves")
+        ]
+    )]
+    public function recapRechercheEtudiant() {}
 }

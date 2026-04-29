@@ -7,6 +7,7 @@ use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\Classe;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
+use App\Models\Gestion_note\Bulletin;
 use App\Models\Paiement\Recu;
 use App\Models\Paiement\ResumePaiement;
 use Carbon\Carbon;
@@ -159,45 +160,49 @@ class RecapitulatifAnneeScolaireController extends Controller
         ]);
     }
 
-    public function statistiques($anneeId)
+    public function statistiques(Request $request, $anneeId)
     {
         $annee = AnneeScolaire::findOrFail($anneeId);
-        $precedente = AnneeScolaire::where('date_debut', '<', $annee->date_debut)
-            ->orderByDesc('date_debut')
-            ->first();
+        $niveauId = $request->query('niveau_id');
+        $classeId = $request->query('classe_id');
 
-        $nombreElevesInscrits = Inscription::where('id_annee_scolaire', $annee->id)->count();
-        $nombreRecus = Recu::whereHas('inscription', function ($query) use ($annee) {
-            $query->where('id_annee_scolaire', $annee->id);
-        })->count();
-        $totalCollecte = (float) Paiement::whereHas('inscription', function ($query) use ($annee) {
-            $query->where('id_annee_scolaire', $annee->id);
-        })->sum('montant');
+        $classesQuery = Classe::where('anneeScolaire_id', $annee->id)
+            ->when($niveauId, fn($q) => $q->where('niveau_id', $niveauId))
+            ->when($classeId, fn($q) => $q->where('id', $classeId));
 
-        $inscritsPrecedents = $precedente
-            ? Inscription::where('id_annee_scolaire', $precedente->id)->count()
-            : 0;
-        $collectePrecedente = $precedente
-            ? (float) Paiement::whereHas('inscription', function ($query) use ($precedente) {
-                $query->where('id_annee_scolaire', $precedente->id);
-            })->sum('montant')
-            : 0;
+        $resultatsClasses = $classesQuery->get()->map(function ($classe) use ($annee) {
+            $inscriptions = Inscription::where('id_classe', $classe->id)
+                ->where('id_annee_scolaire', $annee->id)
+                ->pluck('id');
 
-        $repartitionParNiveau = DB::table('inscriptions')
-            ->join('classes', 'classes.id', '=', 'inscriptions.id_classe')
-            ->join('niveaux', 'niveaux.id', '=', 'classes.niveau_id')
-            ->where('inscriptions.id_annee_scolaire', $annee->id)
-            ->groupBy('niveaux.id', 'niveaux.nom_niveau', 'niveaux.cycle')
-            ->orderBy('niveaux.nom_niveau')
-            ->selectRaw('niveaux.id, niveaux.nom_niveau, niveaux.cycle, COUNT(inscriptions.id) as nombre_eleves')
-            ->get()
-            ->map(fn ($row) => [
-                'niveau_id' => (int) $row->id,
-                'nom_niveau' => $row->nom_niveau,
-                'cycle' => $row->cycle,
-                'nombre_eleves' => (int) $row->nombre_eleves,
-            ])
-            ->values();
+            $effectif = $inscriptions->count();
+
+            // Statistiques par trimestre
+            $trimestres = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+            $statsTrimestres = collect($trimestres)->map(function ($trimestre) use ($inscriptions) {
+                $bulletins = Bulletin::whereIn('inscription_id', $inscriptions)
+                    ->where('periode', $trimestre)
+                    ->get();
+
+                $moyenneClasse = $bulletins->avg('moyenne_eleve');
+                $nombreAdmis = $bulletins->where('moyenne_eleve', '>=', 10)->count();
+                $tauxReussite = $bulletins->count() > 0 ? round(($nombreAdmis / $bulletins->count()) * 100, 2) : 0;
+
+                return [
+                    'trimestre' => $trimestre,
+                    'moyenne_classe' => round($moyenneClasse, 2),
+                    'taux_reussite' => $tauxReussite,
+                    'nombre_bulletins' => $bulletins->count()
+                ];
+            });
+
+            return [
+                'id' => $classe->id,
+                'nom_classe' => $classe->nom_classe,
+                'effectif' => $effectif,
+                'statistiques_trimestres' => $statsTrimestres
+            ];
+        });
 
         return response()->json([
             'success' => true,
@@ -206,28 +211,7 @@ class RecapitulatifAnneeScolaireController extends Controller
                     'id' => $annee->id,
                     'libelle' => $annee->libelle,
                 ],
-                'statistique' => [
-                    'nombre_eleves_inscrits' => $nombreElevesInscrits,
-                    'nombre_recus' => $nombreRecus,
-                    'total_collecte' => round($totalCollecte, 2),
-                    'croissance_annuelle' => [
-                        'annee_precedente' => $precedente ? [
-                            'id' => $precedente->id,
-                            'libelle' => $precedente->libelle,
-                        ] : null,
-                        'inscriptions' => [
-                            'valeur_actuelle' => $nombreElevesInscrits,
-                            'valeur_precedente' => $inscritsPrecedents,
-                            'taux' => $this->calculerCroissance($nombreElevesInscrits, $inscritsPrecedents),
-                        ],
-                        'collecte' => [
-                            'valeur_actuelle' => round($totalCollecte, 2),
-                            'valeur_precedente' => round($collectePrecedente, 2),
-                            'taux' => $this->calculerCroissance($totalCollecte, $collectePrecedente),
-                        ],
-                    ],
-                    'repartition_par_niveau' => $repartitionParNiveau,
-                ],
+                'statistiques_par_classe' => $resultatsClasses
             ],
         ]);
     }
@@ -244,9 +228,16 @@ class RecapitulatifAnneeScolaireController extends Controller
             $query->where('id_annee_scolaire', $annee->id);
         })->sum('montant');
 
-        $elevesConcernes = Paiement::whereHas('inscription', function ($query) use ($annee) {
+        $restePaye = $totalPrix - $totalCollecte;
+
+        // Répartition par statut de paiement
+        $resumes = ResumePaiement::whereHas('inscription', function ($query) use ($annee) {
             $query->where('id_annee_scolaire', $annee->id);
-        })->distinct('inscription_id')->count('inscription_id');
+        })->get();
+
+        $totalPayer = $resumes->filter(fn($r) => $r->total_restant <= 0)->count();
+        $totalPartiel = $resumes->filter(fn($r) => $r->total_paye > 0 && $r->total_restant > 0)->count();
+        $totalImpayer = $resumes->filter(fn($r) => $r->total_paye <= 0)->count();
 
         $evolutionMensuelle = collect($this->genererMoisAnneeScolaire($annee))
             ->map(function (array $periode) use ($annee) {
@@ -266,40 +257,6 @@ class RecapitulatifAnneeScolaireController extends Controller
             })
             ->values();
 
-        $repartitionParTypeFrais = DB::table('paiements')
-            ->join('inscriptions', 'inscriptions.id', '=', 'paiements.inscription_id')
-            ->leftJoin('type_frais', 'type_frais.id', '=', 'paiements.type_frais_id')
-            ->where('inscriptions.id_annee_scolaire', $annee->id)
-            ->groupBy('paiements.type', 'paiements.libelle', 'type_frais.libelle')
-            ->selectRaw('COALESCE(type_frais.libelle, paiements.libelle, paiements.type, "Non defini") as type_frais')
-            ->selectRaw('SUM(paiements.montant) as total_collecte')
-            ->selectRaw('COUNT(paiements.id) as nombre_paiements')
-            ->orderByDesc('total_collecte')
-            ->get()
-            ->map(fn ($row) => [
-                'type_frais' => $row->type_frais,
-                'total_collecte' => round((float) $row->total_collecte, 2),
-                'nombre_paiements' => (int) $row->nombre_paiements,
-            ])
-            ->values();
-
-        $paiementParNiveau = DB::table('paiements')
-            ->join('inscriptions', 'inscriptions.id', '=', 'paiements.inscription_id')
-            ->join('classes', 'classes.id', '=', 'inscriptions.id_classe')
-            ->join('niveaux', 'niveaux.id', '=', 'classes.niveau_id')
-            ->where('inscriptions.id_annee_scolaire', $annee->id)
-            ->groupBy('niveaux.id', 'niveaux.nom_niveau', 'niveaux.cycle')
-            ->orderBy('niveaux.nom_niveau')
-            ->selectRaw('niveaux.id, niveaux.nom_niveau, niveaux.cycle, SUM(paiements.montant) as total_collecte')
-            ->get()
-            ->map(fn ($row) => [
-                'niveau_id' => (int) $row->id,
-                'nom_niveau' => $row->nom_niveau,
-                'cycle' => $row->cycle,
-                'total_collecte' => round((float) $row->total_collecte, 2),
-            ])
-            ->values();
-
         return response()->json([
             'success' => true,
             'data' => [
@@ -308,13 +265,14 @@ class RecapitulatifAnneeScolaireController extends Controller
                     'libelle' => $annee->libelle,
                 ],
                 'finance' => [
-                    'total_prix' => round($totalPrix, 2),
-                    'total_collecte' => round($totalCollecte, 2),
+                    'total_prix_entendu' => round($totalPrix, 2),
+                    'total_encaissement_paye' => round($totalCollecte, 2),
+                    'reste_paye' => round($restePaye, 2),
                     'taux_recouvrement' => $this->calculerTauxRecouvrement($totalCollecte, $totalPrix),
-                    'eleves_concernes' => $elevesConcernes,
-                    'evolution_mensuelle' => $evolutionMensuelle,
-                    'repartition_paiement_par_type_frais' => $repartitionParTypeFrais,
-                    'paiement_par_niveau' => $paiementParNiveau,
+                    'total_payer' => $totalPayer,
+                    'total_partiel' => $totalPartiel,
+                    'total_impayer' => $totalImpayer,
+                    'comparaison_mensuelle' => $evolutionMensuelle,
                 ],
             ],
         ]);
@@ -437,5 +395,43 @@ class RecapitulatifAnneeScolaireController extends Controller
         }
 
         return $mois;
+    }
+    public function rechercherEtudiant(Request $request, $anneeId)
+    {
+        $annee = AnneeScolaire::findOrFail($anneeId);
+        $nom = $request->query('nom');
+        $matricule = $request->query('matricule');
+
+        $inscriptions = Inscription::with(['eleve', 'classe', 'resumePaiement'])
+            ->where('id_annee_scolaire', $annee->id)
+            ->whereHas('eleve', function ($query) use ($nom, $matricule) {
+                if ($nom) {
+                    $query->where(DB::raw("CONCAT(nom, ' ', prenom)"), 'like', "%{$nom}%");
+                }
+                if ($matricule) {
+                    $query->where('matricule', $matricule);
+                }
+            })
+            ->get()
+            ->map(function ($ins) {
+                $moyenneGeneral = Bulletin::where('inscription_id', $ins->id)->avg('moyenne_eleve');
+                $statusPaye = ($ins->resumePaiement && $ins->resumePaiement->total_restant <= 0) ? 'Payé' : 'Impayé';
+                if ($ins->resumePaiement && $ins->resumePaiement->total_paye > 0 && $ins->resumePaiement->total_restant > 0) {
+                    $statusPaye = 'Partiel';
+                }
+
+                return [
+                    'nom' => $ins->eleve->nom . ' ' . $ins->eleve->prenom,
+                    'numeroImmatricule' => $ins->eleve->matricule,
+                    'classe' => $ins->classe->nom_classe,
+                    'status_paye' => $statusPaye,
+                    'moyenne_general' => round($moyenneGeneral, 2)
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $inscriptions
+        ]);
     }
 }

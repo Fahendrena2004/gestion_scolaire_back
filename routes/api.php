@@ -79,7 +79,16 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::middleware('role:admin')->group(function () {
         Route::post('/register', [RegisterController::class, 'register']);
-        Route::get('/admin/utilisateurs', [UtilisateurController::class, 'index']);
+
+        // Gestion des utilisateurs (CRUD complet)
+        Route::prefix('admin/utilisateurs')->group(function () {
+            Route::get('/', [UtilisateurController::class, 'index']);
+            Route::post('/', [UtilisateurController::class, 'store']);
+            Route::get('/statistiques', [UtilisateurController::class, 'statistiques']);
+            Route::get('/{id}', [UtilisateurController::class, 'show']);
+            Route::put('/{id}', [UtilisateurController::class, 'update']);
+            Route::delete('/{id}', [UtilisateurController::class, 'destroy']);
+        });
 
         Route::prefix('inscription')->group(function () {
             // Années scolaires (CRUD admin)
@@ -124,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/annees-scolaires/{anneeId}/statistiques', [RecapitulatifAnneeScolaireController::class, 'statistiques']);
             Route::get('/annees-scolaires/{anneeId}/finance', [RecapitulatifAnneeScolaireController::class, 'finance']);
             Route::get('/annees-scolaires/{anneeId}/journal-caisse', [RecapitulatifAnneeScolaireController::class, 'journalCaisse']);
+            Route::get('/annees-scolaires/{anneeId}/recherche-etudiant', [RecapitulatifAnneeScolaireController::class, 'rechercherEtudiant']);
         });
 
         // ─── INSCRIPTION ──────────────────────────────────────────────────────

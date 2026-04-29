@@ -753,4 +753,5 @@ class RouteCoverageSwagger
         ]
     )]
     public function detailBulletinUpdate() {}
+
 }

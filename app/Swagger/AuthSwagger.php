@@ -158,4 +158,67 @@ class AuthSwagger
         ]
     )]
     public function logout() {}
+
+    #[OA\Post(
+        path: '/api/forgot-password',
+        tags: ['Auth'],
+        summary: 'Demander un code de reinitialisation',
+        description: 'Envoie un email contenant un code de verification a 6 chiffres',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', example: 'test@mail.com'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Code envoye',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Code de vérification envoyé à votre adresse email.'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 400, description: 'Email invalide ou utilisateur introuvable'),
+            new OA\Response(response: 422, description: 'Erreur validation'),
+        ]
+    )]
+    public function forgotPassword() {}
+
+    #[OA\Post(
+        path: '/api/reset-password',
+        tags: ['Auth'],
+        summary: 'Reinitialiser le mot de passe',
+        description: 'Reinitialise le mot de passe en utilisant le code de verification recu par email',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['code', 'email', 'password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'code', type: 'string', example: '123456'),
+                    new OA\Property(property: 'email', type: 'string', example: 'test@mail.com'),
+                    new OA\Property(property: 'password', type: 'string', example: 'nouveau_mot_de_passe'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', example: 'nouveau_mot_de_passe'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Mot de passe reinitialise',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Votre mot de passe a été réinitialisé avec succès.'),
+                    ]
+                )
+            ),
+            new OA\Response(response: 400, description: 'Code invalide ou expire'),
+            new OA\Response(response: 422, description: 'Erreur validation'),
+        ]
+    )]
+    public function resetPassword() {}
 }

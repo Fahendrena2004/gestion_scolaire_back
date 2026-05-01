@@ -14,6 +14,7 @@ use App\Http\Controllers\Dashboard\RecapitulatifAnneeScolaireController;
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetpasswordController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\UtilisateurController;
 
@@ -56,6 +57,8 @@ Route::get('/test', function () {
 // Auth
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/login', [LoginController::class, 'login']);
+Route::post('/forgot-password', [ResetpasswordController::class, 'sendResetLinkEmail']);
+Route::post('/reset-password', [ResetpasswordController::class, 'reset']);
 
 /*
 |--------------------------------------------------------------------------

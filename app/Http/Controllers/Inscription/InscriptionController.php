@@ -533,4 +533,5 @@ class InscriptionController extends Controller
 
         return 'PAY-' . date('Y') . '-' . str_pad($lastId + 1, 6, '0', STR_PAD_LEFT);
     }
+
 }

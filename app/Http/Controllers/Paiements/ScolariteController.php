@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Paiements;
 
 use App\Http\Controllers\Controller;
+use App\Models\Finance\Caisse;
+use App\Models\Finance\CategorieEntree;
+use App\Models\Finance\Entree;
+use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\PaiementMensuel;
@@ -161,6 +165,28 @@ class ScolariteController extends Controller
                     'message' => 'Aucun mois valide selectionne',
                 ], 422);
             }
+
+            // --- INTEGRATION FINANCE ---
+            $typeScolarite = CategorieEntree::where('nom', 'Scolarité')->first();
+            if ($typeScolarite) {
+                Entree::create([
+                    'reference' => 'ENT-SCO-' . time(),
+                    'montant' => $totalMontant,
+                    'date_entree' => now(),
+                    'type_entree_id' => $typeScolarite->id,
+                    'inscription_id' => $inscription->id,
+                    'annee_scolaire_id' => $inscription->annee_scolaire_id,
+                    'description' => 'Paiement scolarité pour ' . count($paiementsEnregistres) . ' mois',
+                    'created_by' => $userId
+                ]);
+
+                $caisse = Caisse::firstOrCreate(
+                    ['annee_scolaire_id' => $inscription->annee_scolaire_id],
+                    ['nom' => 'Caisse Principale', 'solde' => 0]
+                );
+                $caisse->increment('solde', $totalMontant);
+            }
+            // ---------------------------
 
             $this->mettreAJourResume($resume);
 

@@ -69,6 +69,136 @@ class NoteBulletinSwagger
     )]
     public function indexNotes() {}
 
+    #[OA\Get(
+        path: '/api/notes/periodes',
+        security: [['bearerAuth' => []]],
+        tags: ['Notes'],
+        summary: 'Lister les périodes/trimestres',
+        description: 'Retourne la liste des trimestres ou semestres valides',
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Liste des périodes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'array',
+                            items: new OA\Items(
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'string', example: 'TRIMESTRE_1'),
+                                    new OA\Property(property: 'nom', type: 'string', example: '1er Trimestre'),
+                                ]
+                            )
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+    public function getPeriodes() {}
+
+    #[OA\Get(
+        path: '/api/notes/statistiques',
+        security: [['bearerAuth' => []]],
+        tags: ['Notes'],
+        summary: 'Statistiques globales des notes',
+        description: 'Retourne les statistiques (total élèves, total notes, etc.)',
+        parameters: [
+            new OA\Parameter(
+                name: 'classe_id',
+                in: 'query',
+                required: false,
+                description: 'ID de la classe',
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+            new OA\Parameter(
+                name: 'periode',
+                in: 'query',
+                required: false,
+                description: 'Période (TRIMESTRE_1, etc.)',
+                schema: new OA\Schema(type: 'string', example: 'TRIMESTRE_1')
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Succès',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(
+                            property: 'data',
+                            properties: [
+                                new OA\Property(property: 'total_eleves', type: 'integer'),
+                                new OA\Property(property: 'total_matieres', type: 'integer'),
+                                new OA\Property(property: 'total_notes', type: 'integer'),
+                                new OA\Property(property: 'total_bulletins', type: 'integer'),
+                                new OA\Property(
+                                    property: 'distribution_notes',
+                                    type: 'object',
+                                    properties: [
+                                        new OA\Property(property: '0-9', type: 'integer'),
+                                        new OA\Property(property: '10-11', type: 'integer'),
+                                        new OA\Property(property: '12-13', type: 'integer'),
+                                        new OA\Property(property: '14-15', type: 'integer'),
+                                        new OA\Property(property: '16-20', type: 'integer'),
+                                    ]
+                                ),
+                            ]
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+    public function getStatistiques() {}
+
+    #[OA\Get(
+        path: '/api/notes/activites-recentes',
+        security: [['bearerAuth' => []]],
+        tags: ['Notes'],
+        summary: 'Activités récentes des notes et bulletins',
+        description: 'Retourne les activités récentes avec limit (défaut 10)',
+        parameters: [
+            new OA\Parameter(
+                name: 'limit',
+                in: 'query',
+                required: false,
+                description: 'Nombre de résultats (défaut 10)',
+                schema: new OA\Schema(type: 'integer', example: 10)
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Succès',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'array',
+                            items: new OA\Items(
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'string'),
+                                    new OA\Property(property: 'action', type: 'string'),
+                                    new OA\Property(property: 'details', type: 'string'),
+                                    new OA\Property(property: 'concerne', type: 'string'),
+                                    new OA\Property(property: 'date', type: 'string', format: 'date-time'),
+                                    new OA\Property(property: 'status', type: 'string'),
+                                    new OA\Property(property: 'type', type: 'string'),
+                                ]
+                            )
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+    public function getActivitesRecentes() {}
+
     #[OA\Post(
         path: '/api/notes',
         security: [['bearerAuth' => []]],

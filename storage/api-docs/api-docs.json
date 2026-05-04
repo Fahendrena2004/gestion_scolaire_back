@@ -12,6 +12,100 @@
         }
     ],
     "paths": {
+        "/api/admin/dashboard/stats": {
+            "get": {
+                "tags": [
+                    "Admin - Dashboard"
+                ],
+                "summary": "Tableau de bord de l'administrateur",
+                "description": "Retourne le total des entrees (prix encaissement), sorties (decaissement), solde actuel, nombre de transactions, evolution mensuelle, repartition par cycle et activites recentes.",
+                "operationId": "a887928d1c2d21b29720cd716dd22cde",
+                "responses": {
+                    "200": {
+                        "description": "Statistiques recuperees avec succes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "stats_globales": {
+                                                    "properties": {
+                                                        "total_entree": {
+                                                            "description": "Total prix entree / encaissement",
+                                                            "type": "number",
+                                                            "example": 1500000
+                                                        },
+                                                        "total_sortie": {
+                                                            "description": "Total sortie / decaissement",
+                                                            "type": "number",
+                                                            "example": 500000
+                                                        },
+                                                        "solde_actuel": {
+                                                            "description": "Solde actuel",
+                                                            "type": "number",
+                                                            "example": 1000000
+                                                        },
+                                                        "nombre_transactions": {
+                                                            "description": "Nombre transactions effectuees",
+                                                            "type": "integer",
+                                                            "example": 42
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "evolution_mensuelle": {
+                                                    "description": "Suivi de l'evolution financiere sur les 6 derniers mois",
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "repartition_cycle": {
+                                                    "description": "Nombre de repartition par cycle",
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "activites_recentes": {
+                                                    "description": "Activites recentes (paie frais, salaire)",
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "annee_scolaire": {
+                                                    "type": "string",
+                                                    "example": "2023-2024"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifie"
+                    },
+                    "403": {
+                        "description": "Acces reserve a l admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/admin/utilisateurs": {
             "get": {
                 "tags": [
@@ -1724,6 +1818,280 @@
                 ]
             }
         },
+        "/api/finance/overview": {
+            "get": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Récupérer le solde actuel (ADMIN UNIQUEMENT)",
+                "operationId": "f42658dd2f813a1e967c0d67b58062c3",
+                "responses": {
+                    "200": {
+                        "description": "Aperçu financier récupéré avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "solde_actuel": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 1500000.5
+                                                },
+                                                "total_entrees": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 2000000
+                                                },
+                                                "total_sorties": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 499999.5
+                                                },
+                                                "annee_scolaire": {
+                                                    "type": "string",
+                                                    "example": "2025-2026"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Non authentifié"
+                    },
+                    "404": {
+                        "description": "Aucune année scolaire active"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/categories": {
+            "get": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Lister les catégories d'entrées et de sorties",
+                "operationId": "b476b95fcd39810f8b0389dda34cc9fb",
+                "responses": {
+                    "200": {
+                        "description": "Catégories récupérées"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/entrees": {
+            "post": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Enregistrer une nouvelle entrée d'argent (Don, Subvention, etc.)",
+                "operationId": "36943bdc2936af7ef0b24b92bcad2e4f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "montant",
+                                    "date_entree",
+                                    "type_entree_id"
+                                ],
+                                "properties": {
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500000
+                                    },
+                                    "date_entree": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-05-04"
+                                    },
+                                    "type_entree_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "donneur_id": {
+                                        "type": "integer",
+                                        "example": 1,
+                                        "nullable": true
+                                    },
+                                    "inscription_id": {
+                                        "type": "integer",
+                                        "example": 10,
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Don généreux pour la bibliothèque"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Entrée enregistrée et caisse mise à jour"
+                    },
+                    "422": {
+                        "description": "Erreur de validation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/sorties": {
+            "post": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Enregistrer une sortie d'argent (Processus en une seule étape)",
+                "description": "Enregistre la sortie, met à jour le solde de la caisse et définit le statut à \"paye\". Si le type contient \"Salaire\", staff_id est obligatoire.",
+                "operationId": "a6e82562847bbcc5c87cd94dcc1ccf20",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "montant",
+                                    "date_sortie",
+                                    "type_sortie_id"
+                                ],
+                                "properties": {
+                                    "montant": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 100000
+                                    },
+                                    "date_sortie": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-05-04"
+                                    },
+                                    "type_sortie_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "staff_id": {
+                                        "description": "Obligatoire si type est Salaire",
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Paiement salaire mensuel"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Sortie enregistrée et payée, caisse mise à jour"
+                    },
+                    "422": {
+                        "description": "Erreur de validation ou solde insuffisant"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/historique": {
+            "get": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Consulter l'historique global (ADMIN UNIQUEMENT)",
+                "operationId": "e9257f046384e4ebf507797b3a0df90e",
+                "parameters": [
+                    {
+                        "name": "annee",
+                        "in": "query",
+                        "description": "Libellé de l'année (ex: 2025-2026) ou \"Tous\"",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "2025-2026"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Historique récupéré"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/finance/archiver/{anneeId}": {
+            "post": {
+                "tags": [
+                    "Gestion Financière"
+                ],
+                "summary": "Archiver les données financières d'une année scolaire",
+                "operationId": "ffdd2df566f514401162cfb88580e8f5",
+                "parameters": [
+                    {
+                        "name": "anneeId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Données archivées avec succès"
+                    },
+                    "403": {
+                        "description": "Accès interdit (Admin requis)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/inscription/cycles": {
             "get": {
                 "tags": [
@@ -2315,6 +2683,222 @@
                     },
                     "500": {
                         "description": "Erreur serveur"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notes/periodes": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Lister les périodes/trimestres",
+                "description": "Retourne la liste des trimestres ou semestres valides",
+                "operationId": "c54693df6a0289575755cf393d1b3586",
+                "responses": {
+                    "200": {
+                        "description": "Liste des périodes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "example": "TRIMESTRE_1"
+                                                    },
+                                                    "nom": {
+                                                        "type": "string",
+                                                        "example": "1er Trimestre"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notes/statistiques": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Statistiques globales des notes",
+                "description": "Retourne les statistiques (total élèves, total notes, etc.)",
+                "operationId": "f499b8812d4aa27095035614f1b6b215",
+                "parameters": [
+                    {
+                        "name": "classe_id",
+                        "in": "query",
+                        "description": "ID de la classe",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "periode",
+                        "in": "query",
+                        "description": "Période (TRIMESTRE_1, etc.)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "TRIMESTRE_1"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_eleves": {
+                                                    "type": "integer"
+                                                },
+                                                "total_matieres": {
+                                                    "type": "integer"
+                                                },
+                                                "total_notes": {
+                                                    "type": "integer"
+                                                },
+                                                "total_bulletins": {
+                                                    "type": "integer"
+                                                },
+                                                "distribution_notes": {
+                                                    "properties": {
+                                                        "0-9": {
+                                                            "type": "integer"
+                                                        },
+                                                        "10-11": {
+                                                            "type": "integer"
+                                                        },
+                                                        "12-13": {
+                                                            "type": "integer"
+                                                        },
+                                                        "14-15": {
+                                                            "type": "integer"
+                                                        },
+                                                        "16-20": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notes/activites-recentes": {
+            "get": {
+                "tags": [
+                    "Notes"
+                ],
+                "summary": "Activités récentes des notes et bulletins",
+                "description": "Retourne les activités récentes avec limit (défaut 10)",
+                "operationId": "26b97f50ca99be223ada6d018a6ee19c",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Nombre de résultats (défaut 10)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string"
+                                                    },
+                                                    "action": {
+                                                        "type": "string"
+                                                    },
+                                                    "details": {
+                                                        "type": "string"
+                                                    },
+                                                    "concerne": {
+                                                        "type": "string"
+                                                    },
+                                                    "date": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -5968,6 +6552,10 @@
     },
     "tags": [
         {
+            "name": "Admin - Dashboard",
+            "description": "Admin - Dashboard"
+        },
+        {
             "name": "Admin - Utilisateurs",
             "description": "Admin - Utilisateurs"
         },
@@ -5982,6 +6570,10 @@
         {
             "name": "Dashboard",
             "description": "Dashboard"
+        },
+        {
+            "name": "Gestion Financière",
+            "description": "Gestion Financière"
         },
         {
             "name": "Cycles",

@@ -214,25 +214,21 @@ class AnneeScolaireController extends Controller
     private function synchroniserClasses(AnneeScolaire $annee, array $classes): void
     {
         foreach ($classes as $data) {
-            $classe = Classe::find($data['id']);
+            $classeExistante = Classe::find($data['id']);
 
-            if (!$classe) {
+            if (!$classeExistante) {
                 continue;
             }
 
-            $payload = [
+            // Au lieu de déplacer la classe (ce qui détruit l'historique), on la duplique pour la nouvelle année
+            Classe::create([
+                'nom_classe'       => $classeExistante->nom_classe,
+                'niveau_id'        => $classeExistante->niveau_id,
+                'code_division'    => $classeExistante->code_division,
+                'max_effectif'     => $data['max_effectif'] ?? $classeExistante->max_effectif,
                 'anneeScolaire_id' => $annee->id,
-            ];
-
-            if (array_key_exists('effectif', $data)) {
-                $payload['effectif'] = $data['effectif'];
-            }
-
-            if (array_key_exists('max_effectif', $data)) {
-                $payload['max_effectif'] = $data['max_effectif'];
-            }
-
-            $classe->update($payload);
+                'effectif'         => 0, // On remet l'effectif à 0 pour la nouvelle année
+            ]);
         }
     }
 

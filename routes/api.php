@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 // Dashboard
+use App\Http\Controllers\Dashboard\AdminController;
 use App\Http\Controllers\Dashboard\CaissierController;
 use App\Http\Controllers\Dashboard\RecapitulatifAnneeScolaireController;
+// Finance
+use App\Http\Controllers\Finance\FinanceController;
 
 // AUTH
 use App\Http\Controllers\Auth\LoginController;
@@ -134,6 +137,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}', [StaffController::class, 'update']);
             Route::delete('/{id}', [StaffController::class, 'destroy']);
         });
+
+        // Dashboard Admin
+        Route::get('admin/dashboard/stats', [AdminController::class, 'getStats']);
     });
 
     /*
@@ -206,6 +212,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
         });
 
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | GESTION DES NOTES (ADMIN ET CAISSIER)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('role:admin,caissier')->group(function () {
+        
         // ─── MATIÈRES ─────────────────────────────────────────────────────────
         Route::prefix('matieres')->group(function () {
             Route::get('/', [MatieresController::class, 'index']);
@@ -219,6 +234,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // ─── NOTES ────────────────────────────────────────────────────────────
         Route::prefix('notes')->group(function () {
+            Route::get('/periodes', [NotesController::class, 'getPeriodes']);
+            Route::get('/statistiques', [NotesController::class, 'getStatistiques']);
+            Route::get('/activites-recentes', [NotesController::class, 'getActivitesRecentes']);
+
             Route::get('/', [NotesController::class, 'index']);
             Route::post('/', [NotesController::class, 'store']);
             Route::get('/moyenne/{inscriptionId}/{periode}', [NotesController::class, 'getMoyenne']);
@@ -265,6 +284,21 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/payer', [ScolariteController::class, 'payerMois']);
             Route::post('/payer-tout/{inscriptionId}', [ScolariteController::class, 'payerTout']);
             Route::get('/historique/{inscriptionId}', [ScolariteController::class, 'getHistorique']);
+        });
+
+        // ─── GESTION FINANCIÈRE (FINANCE) ─────────────────────────────────────
+        Route::prefix('finance')->group(function () {
+            // Routes accessibles à l'Admin ET au Caissier
+            Route::get('/categories', [FinanceController::class, 'getCategories']);
+            Route::post('/entrees', [FinanceController::class, 'storeEntree']);
+            Route::post('/sorties', [FinanceController::class, 'storeSortie']);
+
+            // Routes réservées à l'ADMIN uniquement (Inventaire, Archivage)
+            Route::middleware('role:admin')->group(function () {
+                Route::get('/overview', [FinanceController::class, 'index']);
+                Route::get('/historique', [FinanceController::class, 'getHistorique']);
+                Route::post('/archiver/{anneeId}', [FinanceController::class, 'archiveYear']);
+            });
         });
     });
 });

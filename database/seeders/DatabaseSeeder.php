@@ -23,5 +23,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ClasseSeeder::class);
         $this->call(UtilisateurSeeder::class);
         $this->call([MatieresSeeder::class,]);
+        $this->call(FinanceCategorySeeder::class);
+        
 }
 }

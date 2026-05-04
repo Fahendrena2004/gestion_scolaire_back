@@ -12,109 +12,103 @@ class FraisController extends Controller
 {
     public function calcul(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'cycle' => 'required|string|in:primaire,college,lycee',
-            'annee_scolaire_id' => 'nullable|exists:annee_scolaires,id',
-            'parascolaire' => 'sometimes|boolean',
-            'cantine' => 'sometimes|boolean',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'cycle'        => 'required|string',
+                'parascolaire' => 'sometimes',
+                'cantine'      => 'sometimes',
+            ]);
 
-        if ($validator->fails()) {
+            if ($validator->fails()) {
+                return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            }
+
+            $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
+
+            if (!$anneeScolaire) {
+                return response()->json(['success' => false, 'message' => 'Aucune année scolaire active.'], 404);
+            }
+
+            $cycle        = $request->input('cycle');
+            $parascolaire = $request->input('parascolaire') == 1 || $request->input('parascolaire') === 'true';
+            $cantine      = $request->input('cantine') == 1 || $request->input('cantine') === 'true';
+
+            $frais = [];
+
+            // 1. Inscription
+            $frais[] = $this->getTypeFrais('Inscription', $anneeScolaire->id);
+
+            // 2. Scolarité (Recherche flexible)
+            $libelleScolarite = 'Scolarité';
+            if ($cycle == 'primaire') $libelleScolarite = 'Scolarité - Primaire';
+            else if ($cycle == 'college') $libelleScolarite = 'Scolarité - Collège';
+            else if ($cycle == 'lycee') $libelleScolarite = 'Scolarité - Lycée';
+            
+            $frais[] = $this->getTypeFrais($libelleScolarite, $anneeScolaire->id);
+
+            // 3. Frais technologiques
+            $frais[] = $this->getTypeFrais('Frais technologiques', $anneeScolaire->id);
+
+            // 4. Options
+            if ($parascolaire) $frais[] = $this->getTypeFrais('Parascolaire', $anneeScolaire->id);
+            if ($cantine) $frais[] = $this->getTypeFrais('Cantine', $anneeScolaire->id);
+
+            // Nettoyage des résultats (filtre les null)
+            $finalFrais = [];
+            foreach ($frais as $f) {
+                if ($f) $finalFrais[] = $f;
+            }
+
+            $total = 0;
+            foreach ($finalFrais as $item) {
+                $total += (float) $item->montant;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'details'      => $finalFrais,
+                    'total_fixe'   => $total,
+                    'cycle'        => $cycle,
+                    'annee_active' => $anneeScolaire->libelle,
+                ],
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => 'Erreur Backend: ' . $e->getMessage()
+            ], 500);
         }
-
-        $anneeScolaire = $request->filled('annee_scolaire_id')
-            ? AnneeScolaire::find($request->annee_scolaire_id)
-            : AnneeScolaire::where('statut', 'en_cours')->first();
-
-        $total = 0;
-        $details = [];
-
-        $fraisObligatoires = [
-            'Inscription',
-            $this->getLibelleScolarite($request->cycle),
-            'Frais technologiques',
-        ];
-
-        foreach ($fraisObligatoires as $libelle) {
-            $typeFrais = $this->getTypeFrais($libelle, $anneeScolaire?->id);
-
-            if (!$typeFrais) {
-                continue;
-            }
-
-            $total += (float) $typeFrais->montant;
-            $details[] = [
-                'libelle' => $typeFrais->libelle,
-                'montant' => $typeFrais->montant,
-                'type' => 'obligatoire',
-                'annee_scolaire_id' => $typeFrais->annee_scolaire_id,
-            ];
-        }
-
-        if ($request->boolean('parascolaire')) {
-            $parascolaire = $this->getTypeFrais('Parascolaire', $anneeScolaire?->id);
-
-            if ($parascolaire) {
-                $total += (float) $parascolaire->montant;
-                $details[] = [
-                    'libelle' => $parascolaire->libelle,
-                    'montant' => $parascolaire->montant,
-                    'type' => 'option',
-                    'annee_scolaire_id' => $parascolaire->annee_scolaire_id,
-                ];
-            }
-        }
-
-        if ($request->boolean('cantine')) {
-            $cantine = $this->getTypeFrais('Cantine', $anneeScolaire?->id);
-
-            if ($cantine) {
-                $total += (float) $cantine->montant;
-                $details[] = [
-                    'libelle' => $cantine->libelle,
-                    'montant' => $cantine->montant,
-                    'type' => 'option',
-                    'annee_scolaire_id' => $cantine->annee_scolaire_id,
-                ];
-            }
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'annee_scolaire_id' => $anneeScolaire?->id,
-                'total' => $total,
-                'details' => $details,
-            ],
-        ]);
     }
 
-    private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
+    private function getTypeFrais($libelle, $anneeId)
     {
-        return TypeFrais::where('libelle', $libelle)
-            ->where(function ($query) use ($anneeScolaireId) {
-                if ($anneeScolaireId) {
-                    $query->where('annee_scolaire_id', $anneeScolaireId)
-                        ->orWhereNull('annee_scolaire_id');
-                } else {
-                    $query->whereNull('annee_scolaire_id');
-                }
+        // 1. Tentative de correspondance exacte
+        $frais = TypeFrais::where('libelle', $libelle)
+            ->where(function($q) use ($anneeId) {
+                $q->where('annee_scolaire_id', $anneeId)->orWhereNull('annee_scolaire_id');
             })
             ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
             ->first();
-    }
 
-    private function getLibelleScolarite(string $cycle): string
-    {
-        return match ($cycle) {
-            'primaire' => 'Scolarité - Primaire',
-            'college' => 'Scolarité - Collège',
-            'lycee' => 'Scolarité - Lycée',
-            default => 'Scolarité',
-        };
+        if ($frais) return $frais;
+
+        // 2. Recherche flexible pour la scolarité / écolage
+        $low = strtolower($libelle);
+        if (strpos($low, 'scolarit') !== false || strpos($low, 'ecolage') !== false) {
+            return TypeFrais::where(function($q) {
+                    $q->where('libelle', 'LIKE', '%Scolarité%')
+                      ->orWhere('libelle', 'LIKE', '%Ecolage%')
+                      ->orWhere('libelle', 'LIKE', '%Mensualité%')
+                      ->orWhere('libelle', 'LIKE', '%Scolarite%');
+                })
+                ->where(function($q) use ($anneeId) {
+                    $q->where('annee_scolaire_id', $anneeId)->orWhereNull('annee_scolaire_id');
+                })
+                ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
+                ->first();
+        }
+
+        return null;
     }
 }

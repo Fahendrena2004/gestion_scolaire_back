@@ -28,7 +28,7 @@ class NotesController extends Controller
     public function index(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'inscription_id' => 'required|exists:inscriptions,id',
+            'eleve_id' => 'required|exists:eleves,id',
             'periode' => 'nullable|string|in:' . implode(',', self::PERIODES_VALIDES),
         ]);
 
@@ -36,13 +36,22 @@ class NotesController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $query = Notes::where('inscription_id', $request->inscription_id);
+        $inscription = Inscription::where('id_eleve', $request->eleve_id)->latest('created_at')->first();
+
+        if (!$inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucune inscription trouvée pour cet élève',
+            ], 404);
+        }
+
+        $query = Notes::where('inscription_id', $inscription->id);
 
         if ($request->has('periode')) {
             $query->where('periode', $request->periode);
         }
 
-        $notes = $query->with('matiere')->get();
+        $notes = $query->with(['matiere.niveau', 'matiere.classe.niveau'])->get();
 
         return response()->json([
             'success' => true,
@@ -53,7 +62,7 @@ class NotesController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'inscription_id' => 'required|exists:inscriptions,id',
+            'eleve_id' => 'required|exists:eleves,id',
             'matiere_id' => 'required|exists:matieres,id',
             'valeur' => 'required|numeric|min:0|max:20',
             'periode' => 'required|string|in:' . implode(',', self::PERIODES_VALIDES),
@@ -67,7 +76,7 @@ class NotesController extends Controller
         }
 
         try {
-            $inscription = Inscription::find($request->inscription_id);
+            $inscription = Inscription::where('id_eleve', $request->eleve_id)->latest('created_at')->first();
             $matiere     = Matieres::find($request->matiere_id);
 
             if (!$inscription || !$matiere) {
@@ -77,23 +86,35 @@ class NotesController extends Controller
                 ], 404);
             }
 
-            if ((int) $matiere->classe_id !== (int) $inscription->id_classe) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'La matiere selectionnee n appartient pas a la classe de cette inscription',
-                ], 422);
+            if ($matiere->classe_id) {
+                if ((int) $matiere->classe_id !== (int) $inscription->id_classe) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La matiere selectionnee n appartient pas a la classe de cette inscription',
+                    ], 422);
+                }
+            } else if ($matiere->niveau_id) {
+                $classeInscription = \App\Models\Inscription\Classe::find($inscription->id_classe);
+                if (!$classeInscription || (int) $classeInscription->niveau_id !== (int) $matiere->niveau_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La matiere selectionnee n appartient pas au niveau de cette inscription',
+                    ], 422);
+                }
             }
 
-            $note = Notes::create($request->only([
-                'inscription_id',
+            $data = $request->only([
                 'matiere_id',
                 'valeur',
                 'periode',
                 'date',
                 'type',
                 'appreciation',
-            ]));
-            $noteWithMatiere = Notes::with('matiere')->find($note->id);
+            ]);
+            $data['inscription_id'] = $inscription->id;
+
+            $note = Notes::create($data);
+            $noteWithMatiere = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($note->id);
 
             return response()->json([
                 'success' => true,
@@ -111,7 +132,7 @@ class NotesController extends Controller
 
     public function show($id)
     {
-        $note = Notes::with('matiere')->find($id);
+        $note = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($id);
 
         if (!$note) {
             return response()->json([
@@ -149,7 +170,7 @@ class NotesController extends Controller
 
         try {
             Notes::where('id', $id)->update($request->only(['valeur', 'date', 'appreciation']));
-            $updatedNote = Notes::with('matiere')->find($id);
+            $updatedNote = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($id);
 
             return response()->json([
                 'success' => true,

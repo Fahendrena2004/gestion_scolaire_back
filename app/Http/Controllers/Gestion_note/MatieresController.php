@@ -12,21 +12,28 @@ class MatieresController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Matieres::with('classe.niveau');
+        $query = Matieres::with(['classe.niveau', 'niveau']);
 
         if ($request->filled('classe_id')) {
             $query->where('classe_id', $request->classe_id);
         }
 
         if ($request->filled('niveau_id')) {
-            $query->whereHas('classe', function ($q) use ($request) {
-                $q->where('niveau_id', $request->niveau_id);
+            $query->where(function ($q) use ($request) {
+                $q->where('niveau_id', $request->niveau_id)
+                  ->orWhereHas('classe', function ($q2) use ($request) {
+                      $q2->where('niveau_id', $request->niveau_id);
+                  });
             });
         }
 
         if ($request->filled('cycle')) {
-            $query->whereHas('classe.niveau', function ($q) use ($request) {
-                $q->where('cycle', $request->cycle);
+            $query->where(function ($q) use ($request) {
+                $q->whereHas('niveau', function ($q2) use ($request) {
+                    $q2->where('cycle', $request->cycle);
+                })->orWhereHas('classe.niveau', function ($q2) use ($request) {
+                    $q2->where('cycle', $request->cycle);
+                });
             });
         }
 
@@ -50,23 +57,28 @@ class MatieresController extends Controller
                 'string',
                 'max:100',
                 Rule::unique('matieres')->where(function ($query) use ($request) {
-                    return $query->where('classe_id', $request->classe_id);
+                    $query->where('classe_id', $request->classe_id);
+                    if ($request->filled('niveau_id')) $query->where('niveau_id', $request->niveau_id);
+                    if ($request->filled('section')) $query->where('section', $request->section);
+                    return $query;
                 }),
             ],
             'coefficient' => 'required|integer|min:1|max:10',
-            'classe_id' => 'required|exists:classes,id',
+            'classe_id' => 'nullable|exists:classes,id',
+            'niveau_id' => 'nullable|exists:niveaux,id',
+            'section' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $matiere = Matieres::create($request->only(['nom', 'coefficient', 'classe_id']));
+        $matiere = Matieres::create($request->only(['nom', 'coefficient', 'classe_id', 'niveau_id', 'section']));
 
         return response()->json([
             'success' => true,
             'message' => 'Matiere ajoutee avec succes',
-            'data' => $matiere->load('classe.niveau'),
+            'data' => $matiere->load(['classe.niveau', 'niveau']),
         ], 201);
     }
 
@@ -113,7 +125,7 @@ class MatieresController extends Controller
         $created = [];
 
         foreach ($request->matieres as $matiereData) {
-            $created[] = Matieres::create($matiereData)->load('classe.niveau');
+            $created[] = Matieres::create($matiereData)->load(['classe.niveau', 'niveau']);
         }
 
         return response()->json([
@@ -125,7 +137,7 @@ class MatieresController extends Controller
 
     public function show($id)
     {
-        $matiere = Matieres::with('classe.niveau')->find($id);
+        $matiere = Matieres::with(['classe.niveau', 'niveau'])->find($id);
 
         if (!$matiere) {
             return response()->json([
@@ -152,24 +164,29 @@ class MatieresController extends Controller
                 'max:100',
                 Rule::unique('matieres')
                     ->ignore($id)
-                    ->where(function ($query) use ($classeId) {
-                        return $query->where('classe_id', $classeId);
+                    ->where(function ($query) use ($request, $classeId) {
+                        $query->where('classe_id', $classeId);
+                        if ($request->filled('niveau_id')) $query->where('niveau_id', $request->niveau_id);
+                        if ($request->filled('section')) $query->where('section', $request->section);
+                        return $query;
                     }),
             ],
             'coefficient' => 'sometimes|integer|min:1|max:10',
-            'classe_id' => 'sometimes|exists:classes,id',
+            'classe_id' => 'nullable|exists:classes,id',
+            'niveau_id' => 'nullable|exists:niveaux,id',
+            'section' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $matiere->update($request->only(['nom', 'coefficient', 'classe_id']));
+        $matiere->update($request->only(['nom', 'coefficient', 'classe_id', 'niveau_id', 'section']));
 
         return response()->json([
             'success' => true,
             'message' => 'Matiere modifiee avec succes',
-            'data' => $matiere->load('classe.niveau'),
+            'data' => $matiere->load(['classe.niveau', 'niveau']),
         ]);
     }
 

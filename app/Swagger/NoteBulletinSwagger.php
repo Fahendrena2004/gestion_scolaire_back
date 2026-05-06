@@ -16,10 +16,10 @@ class NoteBulletinSwagger
         description: 'Retourne la liste des notes pour une inscription et une période donnée',
         parameters: [
             new OA\Parameter(
-                name: 'inscription_id',
+                name: 'eleve_id',
                 in: 'query',
                 required: true,
-                description: 'ID de l\'inscription',
+                description: 'ID de l\'élève',
                 schema: new OA\Schema(type: 'integer', example: 1)
             ),
             new OA\Parameter(
@@ -56,6 +56,8 @@ class NoteBulletinSwagger
                                             new OA\Property(property: 'id', type: 'integer'),
                                             new OA\Property(property: 'nom', type: 'string'),
                                             new OA\Property(property: 'coefficient', type: 'integer'),
+                                            new OA\Property(property: 'cycle', type: 'string'),
+                                            new OA\Property(property: 'niveau_classe', type: 'string'),
                                         ]
                                     ),
                                 ]
@@ -208,9 +210,9 @@ class NoteBulletinSwagger
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['inscription_id', 'matiere_id', 'valeur', 'periode', 'date', 'type'],
+                required: ['eleve_id', 'matiere_id', 'valeur', 'periode', 'date', 'type'],
                 properties: [
-                    new OA\Property(property: 'inscription_id', type: 'integer', example: 1),
+                    new OA\Property(property: 'eleve_id', type: 'integer', example: 1),
                     new OA\Property(property: 'matiere_id', type: 'integer', example: 1),
                     new OA\Property(property: 'valeur', type: 'number', format: 'float', example: 15.5),
                     new OA\Property(property: 'periode', type: 'string', enum: ['TRIMESTRE_1', 'TRIMESTRE_2', 'TRIMESTRE_3', 'SEMESTRE_1', 'SEMESTRE_2'], example: 'TRIMESTRE_1'),
@@ -351,8 +353,11 @@ class NoteBulletinSwagger
                                 new OA\Property(
                                     property: 'matiere',
                                     properties: [
+                                        new OA\Property(property: 'id', type: 'integer'),
                                         new OA\Property(property: 'nom', type: 'string'),
                                         new OA\Property(property: 'coefficient', type: 'integer'),
+                                        new OA\Property(property: 'cycle', type: 'string'),
+                                        new OA\Property(property: 'niveau_classe', type: 'string'),
                                     ]
                                 ),
                             ]

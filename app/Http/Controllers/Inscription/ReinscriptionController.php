@@ -12,6 +12,9 @@ use App\Models\Inscription\Paiement;
 use App\Models\Inscription\Reinscription;
 use App\Models\Inscription\TypeFrais;
 use App\Models\Paiement\ResumePaiement;
+use App\Models\Finance\Caisse;
+use App\Models\Finance\CategorieEntree;
+use App\Models\Finance\Entree;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -475,6 +478,30 @@ class ReinscriptionController extends Controller
                 'utilisateur_id' => $userId,
             ]);
         }
+
+        // --- INTEGRATION FINANCE ---
+        if ($montantVerse > 0) {
+            $typeInscription = CategorieEntree::where('nom', 'Inscription')->first();
+            if ($typeInscription) {
+                Entree::create([
+                    'reference' => 'ENT-REI-' . time(),
+                    'montant' => $montantVerse,
+                    'date_entree' => now(),
+                    'type_entree_id' => $typeInscription->id,
+                    'inscription_id' => $inscription->id,
+                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
+                    'description' => 'Paiement initial lors de la réinscription',
+                    'created_by' => $userId
+                ]);
+
+                $caisse = Caisse::firstOrCreate(
+                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
+                    ['nom' => 'Caisse Principale', 'solde' => 0]
+                );
+                $caisse->increment('solde', $montantVerse);
+            }
+        }
+        // ---------------------------
 
         $this->mettreAJourResumePaiement($resume);
     }

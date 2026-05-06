@@ -7,6 +7,9 @@ use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\PresenceCantine;
 use App\Models\Paiement\Recu;
+use App\Models\Finance\Caisse;
+use App\Models\Finance\CategorieEntree;
+use App\Models\Finance\Entree;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -71,6 +74,32 @@ class PaiementController extends Controller
                 'libelle' => $paiement->libelle,
                 'details' => $paiement->details ? json_encode($paiement->details) : null,
             ]);
+
+            // --- INTEGRATION FINANCE ---
+            if ($paiement->montant > 0) {
+                // Déterminer la catégorie
+                $libelle = $paiement->libelle ?? 'Autre';
+                $typeEntree = CategorieEntree::where('nom', 'like', '%' . $libelle . '%')->first()
+                            ?? CategorieEntree::where('nom', 'Scolarité')->first(); // Défaut scolarité ou autre selon le cas
+
+                Entree::create([
+                    'reference' => 'ENT-LIB-' . time(),
+                    'montant' => $paiement->montant,
+                    'date_entree' => $paiement->date_paiement,
+                    'type_entree_id' => $typeEntree?->id ?? 1,
+                    'inscription_id' => $inscription->id,
+                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
+                    'description' => 'Paiement libre: ' . $paiement->libelle,
+                    'created_by' => $utilisateurId
+                ]);
+
+                $caisse = Caisse::firstOrCreate(
+                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
+                    ['nom' => 'Caisse Principale', 'solde' => 0]
+                );
+                $caisse->increment('solde', $paiement->montant);
+            }
+            // ---------------------------
 
             $this->mettreAJourResume($inscription);
 

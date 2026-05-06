@@ -9,6 +9,9 @@ use App\Models\Inscription\TypeFrais;
 use App\Models\Paiement\PresenceCantine;
 use App\Models\Paiement\Recu;
 use App\Models\Paiement\ResumePaiement;
+use App\Models\Finance\Caisse;
+use App\Models\Finance\CategorieEntree;
+use App\Models\Finance\Entree;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -150,6 +153,7 @@ class CantineController extends Controller
             'inscription_id' => 'required|exists:inscriptions,id',
             'dates' => 'required|array|min:1',
             'dates.*' => 'required|date_format:Y-m-d',
+            'reference' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -207,6 +211,28 @@ class CantineController extends Controller
             ]);
 
             $this->mettreAJourResume($inscription->resumePaiement);
+
+            // --- INTEGRATION FINANCE ---
+            $typeCantineCat = CategorieEntree::where('nom', 'Cantine')->first();
+            if ($typeCantineCat && $totalMontant > 0) {
+                Entree::create([
+                    'reference' => 'ENT-CAN-' . time(),
+                    'montant' => $totalMontant,
+                    'date_entree' => now(),
+                    'type_entree_id' => $typeCantineCat->id,
+                    'inscription_id' => $inscription->id,
+                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
+                    'description' => 'Paiement cantine pour ' . $presences->count() . ' jour(s)',
+                    'created_by' => $userId
+                ]);
+
+                $caisse = Caisse::firstOrCreate(
+                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
+                    ['nom' => 'Caisse Principale', 'solde' => 0]
+                );
+                $caisse->increment('solde', $totalMontant);
+            }
+            // ---------------------------
 
             DB::commit();
 

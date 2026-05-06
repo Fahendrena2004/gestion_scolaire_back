@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\Recu;
+use App\Models\Finance\Caisse;
+use App\Models\Finance\CategorieEntree;
+use App\Models\Finance\Entree;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -67,6 +70,7 @@ class AutresFraisController extends Controller
             'inscription_id' => 'required|exists:inscriptions,id',
             'frais_ids' => 'required|array|min:1',
             'frais_ids.*' => 'exists:frais_appliques,id',
+            'reference' => 'nullable|string',
         ]);
 
         $ids = $request->input('frais_ids', []);
@@ -155,6 +159,34 @@ class AutresFraisController extends Controller
             }
 
             $this->mettreAJourResume($inscription->resumePaiement);
+
+            // --- INTEGRATION FINANCE ---
+            if ($totalMontant > 0) {
+                // On essaie de trouver une catégorie qui correspond au premier frais, sinon "Inscription" par défaut
+                $firstFrais = $fraisSelectionnes->first();
+                $libelleFrais = $firstFrais->typeFrais?->libelle ?? 'Autres Frais';
+                
+                $typeEntree = CategorieEntree::where('nom', $libelleFrais)->first() 
+                            ?? CategorieEntree::where('nom', 'Inscription')->first();
+
+                Entree::create([
+                    'reference' => 'ENT-AUT-' . time(),
+                    'montant' => $totalMontant,
+                    'date_entree' => now(),
+                    'type_entree_id' => $typeEntree?->id ?? 2, // 2 = Inscription par défaut si rien d'autre
+                    'inscription_id' => $inscription->id,
+                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
+                    'description' => 'Paiement ' . $libelleFrais . (count($paiementsEnregistres) > 1 ? ' et autres' : ''),
+                    'created_by' => $userId
+                ]);
+
+                $caisse = Caisse::firstOrCreate(
+                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
+                    ['nom' => 'Caisse Principale', 'solde' => 0]
+                );
+                $caisse->increment('solde', $totalMontant);
+            }
+            // ---------------------------
 
             DB::commit();
 

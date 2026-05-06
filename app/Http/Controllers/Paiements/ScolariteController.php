@@ -69,6 +69,7 @@ class ScolariteController extends Controller
             'mois.*.annee' => 'required_with:mois|integer|min:2000|max:2100',
             'paiements_mensuels_ids' => 'nullable|array|min:1',
             'paiements_mensuels_ids.*' => 'integer|exists:paiements_mensuels,id',
+            'reference' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -98,6 +99,15 @@ class ScolariteController extends Controller
             $montantMensuel = $this->getMontantMensuel($inscription);
             $userId = $this->getUtilisateurId($request);
             $typeFraisId = $this->getTypeFraisScolariteId($inscription);
+
+            if (!$typeFraisId) {
+                \Log::warning('Type de frais scolarité non trouvé pour l\'élève ID: ' . $inscription->id);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Type de frais scolarité non trouvé pour cet élève (Vérifiez la configuration des frais dans l\'onglet "Configuration")',
+                ], 422);
+            }
+
             $paiementsEnregistres = [];
             $totalMontant = 0;
 
@@ -157,12 +167,11 @@ class ScolariteController extends Controller
                 ];
             }
 
-            if (empty($paiementsEnregistres)) {
-                DB::rollBack();
-
+            // Check if any payments were actually made
+            if (empty($paiementsEnregistres) && !$moisDemandes->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Aucun mois valide selectionne',
+                    'message' => 'Les mois sélectionnés sont déjà payés ou ne font pas partie de l\'année scolaire en cours.',
                 ], 422);
             }
 
@@ -175,13 +184,13 @@ class ScolariteController extends Controller
                     'date_entree' => now(),
                     'type_entree_id' => $typeScolarite->id,
                     'inscription_id' => $inscription->id,
-                    'annee_scolaire_id' => $inscription->annee_scolaire_id,
+                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
                     'description' => 'Paiement scolarité pour ' . count($paiementsEnregistres) . ' mois',
                     'created_by' => $userId
                 ]);
 
                 $caisse = Caisse::firstOrCreate(
-                    ['annee_scolaire_id' => $inscription->annee_scolaire_id],
+                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
                     ['nom' => 'Caisse Principale', 'solde' => 0]
                 );
                 $caisse->increment('solde', $totalMontant);
@@ -271,17 +280,35 @@ class ScolariteController extends Controller
 
     private function genererMoisAnneeScolaire(Inscription $inscription): array
     {
-        $dateDebut = Carbon::parse($inscription->anneeScolaire->date_debut)->startOfMonth();
-        $dateFin = Carbon::parse($inscription->anneeScolaire->date_fin)->startOfMonth();
-        $mois = [];
+        $anneeScolaire = $inscription->anneeScolaire ?? $inscription->classe?->anneeScolaire;
+        
+        if (!$anneeScolaire) {
+            $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first() 
+                          ?? AnneeScolaire::latest()->first();
+        }
+        
+        // Fallback dates if missing
+        $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
+        $dateFinStr = $anneeScolaire?->date_fin ?? ((date('Y') + 1) . '-06-30');
 
-        while ($dateDebut <= $dateFin) {
+        $dateDebut = Carbon::parse($dateDebutStr)->startOfMonth();
+        $dateFin = Carbon::parse($dateFinStr)->startOfMonth();
+        
+        // Ensure at least 10 months if the range is too small
+        if ($dateDebut->diffInMonths($dateFin) < 5) {
+            $dateFin = $dateDebut->copy()->addMonths(9);
+        }
+
+        $mois = [];
+        $tempDate = $dateDebut->copy();
+
+        while ($tempDate <= $dateFin) {
             $mois[] = [
-                'mois' => $dateDebut->month,
-                'annee' => $dateDebut->year,
+                'mois' => $tempDate->month,
+                'annee' => $tempDate->year,
             ];
 
-            $dateDebut->addMonth();
+            $tempDate->addMonth();
         }
 
         return $mois;
@@ -289,42 +316,87 @@ class ScolariteController extends Controller
 
     private function getMontantMensuel(Inscription $inscription): float
     {
-        $libelle = match ($inscription->classe->niveau->cycle) {
-            'primaire' => 'Scolarité - Primaire',
-            'college' => 'Scolarité - Collège',
-            'lycee' => 'Scolarité - Lycée',
-            default => 'Scolarité',
-        };
+        $typeFraisId = $this->getTypeFraisScolariteId($inscription);
+        if (!$typeFraisId) return 0;
 
         $fraisApplique = $inscription->fraisAppliques()
-            ->whereHas('typeFrais', function ($query) use ($libelle) {
-                $query->where('libelle', $libelle);
-            })
+            ->where('id_frais', $typeFraisId)
             ->first();
 
-        if (!$fraisApplique) {
-            return 0;
+        $montantTotal = 0;
+        if ($fraisApplique) {
+            $montantTotal = (float) $fraisApplique->montant;
+        } else {
+            // Fallback: use global TypeFrais amount
+            $typeFrais = TypeFrais::find($typeFraisId);
+            if ($typeFrais) {
+                // We need to know the number of months for the academic year
+                $nbMois = max($this->compterMoisScolaires($inscription->anneeScolaire ?? AnneeScolaire::where('statut', 'en_cours')->first() ?? AnneeScolaire::latest()->first()), 10);
+                $montantTotal = (float) $typeFrais->montant * $nbMois;
+            }
         }
 
-        $nbMois = max(count($this->genererMoisAnneeScolaire($inscription)), 1);
+        if ($montantTotal <= 0) return 0;
 
-        return round(((float) $fraisApplique->montant) / $nbMois, 2);
+        $nbMois = max(count($this->genererMoisAnneeScolaire($inscription)), 1);
+        return round($montantTotal / $nbMois, 2);
+    }
+
+    private function compterMoisScolaires($anneeScolaire): int
+    {
+        if (!$anneeScolaire || !$anneeScolaire->date_debut || !$anneeScolaire->date_fin) {
+            return 10; // Default
+        }
+        $dateDebut = Carbon::parse($anneeScolaire->date_debut)->startOfMonth();
+        $dateFin = Carbon::parse($anneeScolaire->date_fin)->startOfMonth();
+
+        return $dateDebut->diffInMonths($dateFin) + 1;
     }
 
     private function getTypeFraisScolariteId(Inscription $inscription): ?int
     {
-        $libelle = match ($inscription->classe->niveau->cycle) {
+        $cycle = $inscription->classe?->niveau?->cycle ?? '';
+        $libelle = match ($cycle) {
             'primaire' => 'Scolarité - Primaire',
             'college' => 'Scolarité - Collège',
             'lycee' => 'Scolarité - Lycée',
             default => 'Scolarité',
         };
 
-        return $inscription->fraisAppliques()
+        // Try primary labels (Scolarité)
+        $id = $inscription->fraisAppliques()
             ->whereHas('typeFrais', function ($query) use ($libelle) {
-                $query->where('libelle', $libelle);
+                $query->where('libelle', 'like', '%' . $libelle . '%');
             })
             ->value('id_frais');
+
+        if (!$id) {
+            // Fallback 1: try generic Scolarité
+            $id = $inscription->fraisAppliques()
+                ->whereHas('typeFrais', function ($query) {
+                    $query->where('libelle', 'like', '%Scolarité%');
+                })
+                ->value('id_frais');
+        }
+
+        if (!$id) {
+            // Fallback 2: try Ecolage
+            $id = $inscription->fraisAppliques()
+                ->whereHas('typeFrais', function ($query) {
+                    $query->where('libelle', 'like', '%Ecolage%');
+                })
+                ->value('id_frais');
+        }
+
+        if (!$id) {
+            // Fallback 3: Search global TypeFrais table directly
+            $id = TypeFrais::where('libelle', 'like', '%Scolarité%')
+                ->orWhere('libelle', 'like', '%Ecolage%')
+                ->orderByRaw('CASE WHEN libelle like "%' . $libelle . '%" THEN 0 ELSE 1 END')
+                ->value('id');
+        }
+
+        return $id;
     }
 
     private function mettreAJourResume(?ResumePaiement $resume): void
@@ -364,13 +436,18 @@ class ScolariteController extends Controller
     private function extraireMoisDemandes(Request $request, ResumePaiement $resume)
     {
         if (is_array($request->mois) && !empty($request->mois)) {
-            return collect($request->mois)
+            $mois = collect($request->mois)
                 ->map(fn ($periode) => [
                     'mois' => (int) $periode['mois'],
                     'annee' => (int) $periode['annee'],
                 ])
                 ->unique(fn ($periode) => $periode['annee'] . '-' . $periode['mois'])
                 ->values();
+            
+            if ($mois->isEmpty()) {
+                \Log::info('extraireMoisDemandes: mois array is empty after mapping', ['raw' => $request->mois]);
+            }
+            return $mois;
         }
 
         if (is_array($request->paiements_mensuels_ids) && !empty($request->paiements_mensuels_ids)) {
@@ -385,6 +462,7 @@ class ScolariteController extends Controller
                 ->values();
         }
 
+        \Log::info('extraireMoisDemandes: no mois or paiements_mensuels_ids provided', $request->all());
         return collect([]);
     }
 }

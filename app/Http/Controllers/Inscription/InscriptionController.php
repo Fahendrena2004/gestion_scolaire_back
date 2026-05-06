@@ -507,18 +507,28 @@ class InscriptionController extends Controller
         ]);
     }
 
-    private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
+private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
     {
-        return TypeFrais::where('libelle', $libelle)
-            ->where(function ($query) use ($anneeScolaireId) {
-                if ($anneeScolaireId) {
-                    $query->where('annee_scolaire_id', $anneeScolaireId)
-                          ->orWhereNull('annee_scolaire_id');
-                } else {
-                    $query->whereNull('annee_scolaire_id');
-                }
-            })
-            ->orderByRaw('CASE WHEN annee_scolaire_id IS NULL THEN 1 ELSE 0 END')
+        $query = TypeFrais::query();
+        
+        $query->where(function ($q) use ($libelle) {
+            $q->where('libelle', $libelle)
+              ->orWhere('libelle', 'like', '%' . $libelle . '%');
+        });
+
+        if ($anneeScolaireId) {
+            $query->where(function ($q) use ($anneeScolaireId) {
+                $q->where('annee_scolaire_id', $anneeScolaireId)
+                  ->orWhereNull('annee_scolaire_id');
+            });
+        } else {
+            $query->whereNull('annee_scolaire_id');
+        }
+
+        return $query->orderByRaw('CASE 
+                WHEN libelle = ? THEN 0 
+                WHEN annee_scolaire_id IS NOT NULL THEN 1 
+                ELSE 2 END', [$libelle])
             ->first();
     }
 

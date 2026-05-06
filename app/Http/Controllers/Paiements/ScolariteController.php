@@ -176,7 +176,7 @@ class ScolariteController extends Controller
             }
 
             // --- INTEGRATION FINANCE ---
-            $typeScolarite = CategorieEntree::where('nom', 'Scolarité')->first();
+            $typeScolarite = CategorieEntree::where('nom', 'like', '%Scolarité%')->first();
             if ($typeScolarite) {
                 Entree::create([
                     'reference' => 'ENT-SCO-' . time(),

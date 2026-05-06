@@ -213,7 +213,9 @@ class CantineController extends Controller
             $this->mettreAJourResume($inscription->resumePaiement);
 
             // --- INTEGRATION FINANCE ---
-            $typeCantineCat = CategorieEntree::where('nom', 'Cantine')->first();
+            $typeCantineCat = CategorieEntree::where('nom', 'like', '%Cantine%')->first()
+                            ?? CategorieEntree::where('nom', 'like', '%Autres%')->first()
+                            ?? CategorieEntree::where('nom', 'like', '%Inscription%')->first();
             if ($typeCantineCat && $totalMontant > 0) {
                 Entree::create([
                     'reference' => 'ENT-CAN-' . time(),

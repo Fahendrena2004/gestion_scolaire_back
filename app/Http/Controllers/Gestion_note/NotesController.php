@@ -37,21 +37,19 @@ class NotesController extends Controller
         }
 
         $inscription = Inscription::where('id_eleve', $request->eleve_id)->latest('created_at')->first();
-
         if (!$inscription) {
             return response()->json([
-                'success' => false,
-                'message' => 'Aucune inscription trouvée pour cet élève',
-            ], 404);
+                'success' => true,
+                'data' => [],
+            ]);
         }
-
         $query = Notes::where('inscription_id', $inscription->id);
 
         if ($request->has('periode')) {
             $query->where('periode', $request->periode);
         }
 
-        $notes = $query->with(['matiere.niveau', 'matiere.classe.niveau'])->get();
+        $notes = $query->with('matiere')->get();
 
         return response()->json([
             'success' => true,
@@ -86,24 +84,27 @@ class NotesController extends Controller
                 ], 404);
             }
 
-            if ($matiere->classe_id) {
+            if ($matiere->classe_id !== null) {
                 if ((int) $matiere->classe_id !== (int) $inscription->id_classe) {
                     return response()->json([
                         'success' => false,
                         'message' => 'La matiere selectionnee n appartient pas a la classe de cette inscription',
                     ], 422);
                 }
-            } else if ($matiere->niveau_id) {
-                $classeInscription = \App\Models\Inscription\Classe::find($inscription->id_classe);
-                if (!$classeInscription || (int) $classeInscription->niveau_id !== (int) $matiere->niveau_id) {
+            } else {
+                // Matière globale : vérifier le cycle et le niveau_classe
+                $classeInscription = $inscription->classe;
+                $niveauInscription = $classeInscription->niveau;
+                
+                if ($matiere->cycle !== $niveauInscription->cycle || $matiere->niveau_classe !== $niveauInscription->nom_niveau) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'La matiere selectionnee n appartient pas au niveau de cette inscription',
+                        'message' => 'Cette matiere globale ne correspond pas au cycle/niveau de l eleve',
                     ], 422);
                 }
             }
 
-            $data = $request->only([
+            $noteData = $request->only([
                 'matiere_id',
                 'valeur',
                 'periode',
@@ -111,10 +112,11 @@ class NotesController extends Controller
                 'type',
                 'appreciation',
             ]);
-            $data['inscription_id'] = $inscription->id;
+            $noteData['inscription_id'] = $inscription->id;
 
-            $note = Notes::create($data);
-            $noteWithMatiere = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($note->id);
+            $note = Notes::create($noteData);
+            $noteWithMatiere = Notes::with('matiere')->find($note->id);
+            
 
             return response()->json([
                 'success' => true,
@@ -132,7 +134,7 @@ class NotesController extends Controller
 
     public function show($id)
     {
-        $note = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($id);
+        $note = Notes::with('matiere')->find($id);
 
         if (!$note) {
             return response()->json([
@@ -170,7 +172,7 @@ class NotesController extends Controller
 
         try {
             Notes::where('id', $id)->update($request->only(['valeur', 'date', 'appreciation']));
-            $updatedNote = Notes::with(['matiere.niveau', 'matiere.classe.niveau'])->find($id);
+            $updatedNote = Notes::with('matiere')->find($id);
 
             return response()->json([
                 'success' => true,
@@ -345,7 +347,7 @@ class NotesController extends Controller
                 return [
                     'id' => 'note_' . $note->id,
                     'action' => 'Nouvelle note ajoutée',
-                    'details' => $note->valeur . '/20 en ' . ($note->matiere ? $note->matiere->nom_matiere : 'Matière inconnue'),
+                    'details' => $note->valeur . '/20 en ' . ($note->matiere ? $note->matiere->nom : 'Matière inconnue'),
                     'concerne' => $eleve,
                     'date' => $note->created_at->format('Y-m-d H:i:s'),
                     'status' => 'success',

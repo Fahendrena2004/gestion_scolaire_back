@@ -472,7 +472,7 @@ class InscriptionController extends Controller
 
         // --- INTEGRATION FINANCE ---
         if ($montantVerse > 0) {
-            $typeInscription = CategorieEntree::where('nom', 'Inscription')->first();
+            $typeInscription = CategorieEntree::where('nom', 'like', '%Inscription%')->first();
             if ($typeInscription) {
                 Entree::create([
                     'reference' => 'ENT-INS-' . time(),

@@ -31,7 +31,23 @@ class BulletinService
 
     public function calculerMoyennesParMatiere($inscriptionId, $periode)
     {
-        $matieres = Matieres::all();
+        $inscription = Inscription::with('classe.niveau')->find($inscriptionId);
+        if (!$inscription) return [];
+
+        $classe = $inscription->classe;
+        $niveau = $classe->niveau;
+
+        // Filtrer les matières correspondant à l'élève :
+        // 1. Matières spécifiques à sa classe
+        // 2. OU Matières globales correspondant à son cycle et niveau (champs strings)
+        $matieres = Matieres::where('classe_id', $classe->id)
+            ->orWhere(function($query) use ($niveau) {
+                $query->whereNull('classe_id')
+                      ->where('cycle', $niveau->cycle)
+                      ->where('niveau_classe', $niveau->nom_niveau);
+            })
+            ->get();
+
         $moyennes = [];
 
         foreach ($matieres as $matiere) {

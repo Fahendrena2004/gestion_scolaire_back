@@ -13,12 +13,11 @@ class FinanceCategorySeeder extends Seeder
     public function run(): void
     {
         $categoriesEntree = [
-            ['nom' => 'Scolarité', 'description' => 'Paiement des frais de scolarité mensuels'],
-            ['nom' => 'Inscription', 'description' => 'Frais d\'inscription annuelle'],
-            ['nom' => 'Cantine', 'description' => 'Frais de restauration'],
-            ['nom' => 'Parascolaire', 'description' => 'Activités extra-scolaires'],
-            ['nom' => 'Don', 'description' => 'Dons de bienfaiteurs'],
-            ['nom' => 'Subvention', 'description' => 'Aides de l\'état ou d\'organisations'],
+            ['nom' => 'Paiement Scolarité', 'description' => 'Paiement des frais de scolarité mensuels'],
+            ['nom' => 'Frais d\'Inscription', 'description' => 'Frais d\'inscription annuelle'],
+            ['nom' => 'Donation', 'description' => 'Dons de bienfaiteurs'],
+            ['nom' => 'Partenariat', 'description' => 'Soutiens d\'organisations partenaires'],
+            ['nom' => 'Vente Fournitures', 'description' => 'Vente de matériel scolaire'],
         ];
 
         foreach ($categoriesEntree as $cat) {
@@ -27,10 +26,18 @@ class FinanceCategorySeeder extends Seeder
 
         $categoriesSortie = [
             ['nom' => 'Salaire', 'description' => 'Paiement des salaires du personnel'],
-            ['nom' => 'Fournitures', 'description' => 'Achat de fournitures scolaires et bureau'],
-            ['nom' => 'Factures', 'description' => 'Eau, électricité, internet, etc.'],
-            ['nom' => 'Entretien', 'description' => 'Maintenance des locaux'],
-            ['nom' => 'Transport', 'description' => 'Frais de déplacement et carburant'],
+            ['nom' => 'Professeur', 'description' => 'Paiement des honoraires des professeurs'],
+            ['nom' => 'Surveillance', 'description' => 'Paiement des surveillants'],
+            ['nom' => 'Gardien', 'description' => 'Paiement du service de gardiennage'],
+            ['nom' => 'Chauffeur', 'description' => 'Paiement des chauffeurs'],
+            ['nom' => 'Coach', 'description' => 'Paiement des coachs sportifs'],
+            ['nom' => 'Craie', 'description' => 'Achat de craies et petit matériel'],
+            ['nom' => 'JIRAMA', 'description' => 'Factures d\'électricité et d\'eau'],
+            ['nom' => 'Cantine', 'description' => 'Achats pour la restauration'],
+            ['nom' => 'Médical', 'description' => 'Achats de pharmacie et soins'],
+            ['nom' => 'Maintenance', 'description' => 'Entretien des bâtiments'],
+            ['nom' => 'Fournitures', 'description' => 'Fournitures administratives'],
+            ['nom' => 'Transport', 'description' => 'Carburant et entretien véhicule'],
         ];
 
         foreach ($categoriesSortie as $cat) {

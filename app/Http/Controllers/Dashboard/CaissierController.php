@@ -9,6 +9,8 @@ use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\ResumePaiement;
+use App\Models\Finance\Entree;
+use App\Models\Finance\Sortie;
 use Carbon\Carbon;
 
 class CaissierController extends Controller
@@ -29,13 +31,15 @@ class CaissierController extends Controller
         // Montant total dû (attendu) pour l'année = total_du de tous les résumés
         $totalDu = $this->getTotalDu($anneeActive);
 
-        // Montant encore impayé (= décaissement attendu non reçu)
+        // Total encore impayé (= montant attendu non reçu)
         $totalRestant = $this->getTotalRestant($anneeActive);
 
+        // -- Sorties (Décaissements réels) --
+        $totalSorties = $this->getTotalSorties($anneeActive);
+
         // ── Solde Net ────────────────────────────────────────────────────────
-        // Solde net = Total encaissé - Total restant à payer (ce qui n'a pas encore été payé)
-        // Autrement dit : combien l'école a effectivement reçu vs ce qu'elle doit encore recevoir
-        $soldeNet = $totalEncaissements;
+        // Solde net = Total encaissé - Total décaissé
+        $soldeNet = $totalEncaissements - $totalSorties;
 
         // ── Autres indicateurs ───────────────────────────────────────────────
         $nombreElevesInscrits  = $this->getNombreElevesInscrits($anneeActive);
@@ -53,13 +57,17 @@ class CaissierController extends Controller
                     'total_encaissements_mois'      => $totalEncaissementsMois,
                     'total_encaissements_mois_formatte' => $this->formatterMontant($totalEncaissementsMois),
 
-                    // Décaissements (montant restant dû = non encore encaissé)
-                    'total_decaissements'           => $totalRestant,
-                    'total_decaissements_formatte'  => $this->formatterMontant($totalRestant),
+                    // Décaissements (sorties réelles)
+                    'total_sorties'                 => $totalSorties,
+                    'total_sorties_formatte'        => $this->formatterMontant($totalSorties),
+
+                    // Montants attendus / Impayés
+                    'total_restant_du'              => $totalRestant,
+                    'total_restant_du_formatte'     => $this->formatterMontant($totalRestant),
                     'total_du'                      => $totalDu,
                     'total_du_formatte'             => $this->formatterMontant($totalDu),
 
-                    // Solde net = encaissements réels
+                    // Solde net = encaissements - sorties
                     'solde_net'                     => $soldeNet,
                     'solde_net_formatte'            => $this->formatterMontant($soldeNet),
 
@@ -101,9 +109,17 @@ class CaissierController extends Controller
     {
         if (!$anneeActive) return 0.0;
 
-        return (float) Paiement::whereHas('inscription', function ($q) use ($anneeActive) {
-            $q->where('id_annee_scolaire', $anneeActive->id);
-        })->sum('montant');
+        return (float) Entree::where('annee_scolaire_id', $anneeActive->id)->sum('montant');
+    }
+
+    /**
+     * Total de tous les décaissements (sorties réelles).
+     */
+    private function getTotalSorties(?AnneeScolaire $anneeActive): float
+    {
+        if (!$anneeActive) return 0.0;
+
+        return (float) Sortie::where('annee_scolaire_id', $anneeActive->id)->sum('montant');
     }
 
     /**
@@ -137,11 +153,9 @@ class CaissierController extends Controller
     {
         if (!$anneeActive) return 0.0;
 
-        return (float) Paiement::whereHas('inscription', function ($q) use ($anneeActive) {
-            $q->where('id_annee_scolaire', $anneeActive->id);
-        })
-            ->whereMonth('date_paiement', $mois)
-            ->whereYear('date_paiement', $annee)
+        return (float) Entree::where('annee_scolaire_id', $anneeActive->id)
+            ->whereMonth('date_entree', $mois)
+            ->whereYear('date_entree', $annee)
             ->sum('montant');
     }
 

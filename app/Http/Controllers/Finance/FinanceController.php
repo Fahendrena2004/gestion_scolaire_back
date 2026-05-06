@@ -12,6 +12,7 @@ use App\Models\Finance\Sortie;
 use App\Models\Finance\SortieArchive;
 use App\Models\Inscription\AnneeScolaire;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -73,7 +74,11 @@ class FinanceController extends Controller
         }
 
         $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
-        
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Utilisateur non authentifié.'], 401);
+        }
+
         DB::beginTransaction();
         try {
             $entree = Entree::create([
@@ -85,7 +90,7 @@ class FinanceController extends Controller
                 'donneur_id' => $request->donneur_id,
                 'annee_scolaire_id' => $anneeScolaire->id,
                 'description' => $request->description,
-                'created_by' => auth()->id()
+                'created_by' => $userId
             ]);
 
             // Mise à jour caisse
@@ -115,16 +120,20 @@ class FinanceController extends Controller
         }
 
         $categorie = CategorieSortie::find($request->type_sortie_id);
-        
+
         // Vérification salaire
         if (str_contains(strtolower($categorie->nom), 'salaire') && !$request->staff_id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Le personnel (staff_id) est obligatoire pour une sortie de type Salaire.'
             ], 422);
         }
 
         $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Utilisateur non authentifié.'], 401);
+        }
         $caisse = Caisse::where('annee_scolaire_id', $anneeScolaire->id)->first();
 
         if ($caisse->solde < $request->montant) {
@@ -142,8 +151,8 @@ class FinanceController extends Controller
                 'statut' => 'paye', // Directement payé
                 'annee_scolaire_id' => $anneeScolaire->id,
                 'description' => $request->description,
-                'created_by' => auth()->id(),
-                'paid_by' => auth()->id()
+                'created_by' => $userId,
+                'paid_by' => $userId
             ]);
 
             $caisse->decrement('solde', $request->montant);
@@ -238,7 +247,7 @@ class FinanceController extends Controller
     public function archiveYear($anneeId)
     {
         $annee = AnneeScolaire::findOrFail($anneeId);
-        
+
         DB::beginTransaction();
         try {
             // Archiver Entrees

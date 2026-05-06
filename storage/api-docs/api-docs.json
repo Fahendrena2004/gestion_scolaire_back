@@ -2441,9 +2441,9 @@
                 "operationId": "7af9fdac42c17ea6877a04b8c004012f",
                 "parameters": [
                     {
-                        "name": "inscription_id",
+                        "name": "eleve_id",
                         "in": "query",
-                        "description": "ID de l'inscription",
+                        "description": "ID de l'élève",
                         "required": true,
                         "schema": {
                             "type": "integer",
@@ -2520,6 +2520,12 @@
                                                             },
                                                             "coefficient": {
                                                                 "type": "integer"
+                                                            },
+                                                            "cycle": {
+                                                                "type": "string"
+                                                            },
+                                                            "niveau_classe": {
+                                                                "type": "string"
                                                             }
                                                         },
                                                         "type": "object"
@@ -2557,7 +2563,7 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "inscription_id",
+                                    "eleve_id",
                                     "matiere_id",
                                     "valeur",
                                     "periode",
@@ -2565,7 +2571,7 @@
                                     "type"
                                 ],
                                 "properties": {
-                                    "inscription_id": {
+                                    "eleve_id": {
                                         "type": "integer",
                                         "example": 1
                                     },
@@ -3071,11 +3077,20 @@
                                                 },
                                                 "matiere": {
                                                     "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
                                                         "nom": {
                                                             "type": "string"
                                                         },
                                                         "coefficient": {
                                                             "type": "integer"
+                                                        },
+                                                        "cycle": {
+                                                            "type": "string"
+                                                        },
+                                                        "niveau_classe": {
+                                                            "type": "string"
                                                         }
                                                     },
                                                     "type": "object"

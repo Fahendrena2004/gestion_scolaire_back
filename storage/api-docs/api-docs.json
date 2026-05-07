@@ -704,7 +704,204 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Liste des staffs"
+                        "description": "Liste des staffs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "nom": {
+                                                                "type": "string",
+                                                                "example": "Rabe"
+                                                            },
+                                                            "prenom": {
+                                                                "type": "string",
+                                                                "example": "Marie"
+                                                            },
+                                                            "telephone": {
+                                                                "type": "string",
+                                                                "example": "0340011223"
+                                                            },
+                                                            "matricule": {
+                                                                "type": "string",
+                                                                "example": "STF-0001"
+                                                            },
+                                                            "email": {
+                                                                "type": "string",
+                                                                "example": "marie.rabe@ecole.local"
+                                                            },
+                                                            "fonction": {
+                                                                "type": "string",
+                                                                "example": "Secretaire"
+                                                            },
+                                                            "salaire": {
+                                                                "type": "number",
+                                                                "format": "float",
+                                                                "example": 450000
+                                                            },
+                                                            "adresse": {
+                                                                "type": "string",
+                                                                "example": "Lot II A 45 Antananarivo"
+                                                            },
+                                                            "sexe": {
+                                                                "type": "string",
+                                                                "example": "feminin",
+                                                                "enum": [
+                                                                    "masculin",
+                                                                    "feminin"
+                                                                ]
+                                                            },
+                                                            "date_naissance": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "1995-08-12"
+                                                            },
+                                                            "lieu_naissance": {
+                                                                "type": "string",
+                                                                "example": "Antsirabe"
+                                                            },
+                                                            "utilisateur_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "updated_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "infos_dynamiques": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "id": {
+                                                                            "type": "integer",
+                                                                            "example": 1
+                                                                        },
+                                                                        "staff_id": {
+                                                                            "type": "integer",
+                                                                            "example": 1
+                                                                        },
+                                                                        "nom_champ": {
+                                                                            "type": "string",
+                                                                            "example": "diplome"
+                                                                        },
+                                                                        "valeur_champ": {
+                                                                            "type": "string",
+                                                                            "example": "Master en Informatique"
+                                                                        },
+                                                                        "created_at": {
+                                                                            "type": "string",
+                                                                            "format": "date-time"
+                                                                        },
+                                                                        "updated_at": {
+                                                                            "type": "string",
+                                                                            "format": "date-time"
+                                                                        }
+                                                                    },
+                                                                    "type": "object"
+                                                                }
+                                                            },
+                                                            "utilisateur": {
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "integer",
+                                                                        "example": 1
+                                                                    },
+                                                                    "nom": {
+                                                                        "type": "string",
+                                                                        "example": "Admin"
+                                                                    },
+                                                                    "prenom": {
+                                                                        "type": "string",
+                                                                        "example": "User"
+                                                                    },
+                                                                    "email": {
+                                                                        "type": "string",
+                                                                        "example": "admin@example.com"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "first_page_url": {
+                                                    "type": "string"
+                                                },
+                                                "from": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page_url": {
+                                                    "type": "string"
+                                                },
+                                                "next_page_url": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "path": {
+                                                    "type": "string"
+                                                },
+                                                "per_page": {
+                                                    "type": "integer"
+                                                },
+                                                "prev_page_url": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "to": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 10
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 20
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Non authentifie"
@@ -794,6 +991,14 @@
                                     "lieu_naissance": {
                                         "type": "string",
                                         "example": "Antsirabe"
+                                    },
+                                    "infos_dynamiques": {
+                                        "description": "Informations dynamiques supplementaires pour le staff",
+                                        "type": "object",
+                                        "example": {
+                                            "diplome": "Master en Informatique",
+                                            "experience": "5 ans"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -906,7 +1111,148 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Detail du staff"
+                        "description": "Detail du staff",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Staff trouve avec succes"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "nom": {
+                                                    "type": "string",
+                                                    "example": "Rabe"
+                                                },
+                                                "prenom": {
+                                                    "type": "string",
+                                                    "example": "Marie"
+                                                },
+                                                "telephone": {
+                                                    "type": "string",
+                                                    "example": "0340011223"
+                                                },
+                                                "matricule": {
+                                                    "type": "string",
+                                                    "example": "STF-0001"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "marie.rabe@ecole.local"
+                                                },
+                                                "fonction": {
+                                                    "type": "string",
+                                                    "example": "Secretaire"
+                                                },
+                                                "salaire": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 450000
+                                                },
+                                                "adresse": {
+                                                    "type": "string",
+                                                    "example": "Lot II A 45 Antananarivo"
+                                                },
+                                                "sexe": {
+                                                    "type": "string",
+                                                    "example": "feminin",
+                                                    "enum": [
+                                                        "masculin",
+                                                        "feminin"
+                                                    ]
+                                                },
+                                                "date_naissance": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "1995-08-12"
+                                                },
+                                                "lieu_naissance": {
+                                                    "type": "string",
+                                                    "example": "Antsirabe"
+                                                },
+                                                "utilisateur_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "infos_dynamiques": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "staff_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "nom_champ": {
+                                                                "type": "string",
+                                                                "example": "diplome"
+                                                            },
+                                                            "valeur_champ": {
+                                                                "type": "string",
+                                                                "example": "Master en Informatique"
+                                                            },
+                                                            "created_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            },
+                                                            "updated_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "utilisateur": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "nom": {
+                                                            "type": "string",
+                                                            "example": "Admin"
+                                                        },
+                                                        "prenom": {
+                                                            "type": "string",
+                                                            "example": "User"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "admin@example.com"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Non authentifie"
@@ -997,6 +1343,14 @@
                                     "lieu_naissance": {
                                         "type": "string",
                                         "example": "Antsirabe"
+                                    },
+                                    "infos_dynamiques": {
+                                        "description": "Informations dynamiques supplementaires pour le staff",
+                                        "type": "object",
+                                        "example": {
+                                            "diplome": "Master en Informatique",
+                                            "experience": "5 ans"
+                                        }
                                     }
                                 },
                                 "type": "object"

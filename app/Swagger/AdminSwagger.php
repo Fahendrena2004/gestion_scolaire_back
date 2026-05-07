@@ -237,7 +237,85 @@ class AdminSwagger
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Liste des staffs'),
+            new OA\Response(
+                response: 200,
+                description: 'Liste des staffs',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'current_page', type: 'integer', example: 1),
+                                new OA\Property(
+                                    property: 'data',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'nom', type: 'string', example: 'Rabe'),
+                                            new OA\Property(property: 'prenom', type: 'string', example: 'Marie'),
+                                            new OA\Property(property: 'telephone', type: 'string', example: '0340011223'),
+                                            new OA\Property(property: 'matricule', type: 'string', example: 'STF-0001'),
+                                            new OA\Property(property: 'email', type: 'string', example: 'marie.rabe@ecole.local'),
+                                            new OA\Property(property: 'fonction', type: 'string', example: 'Secretaire'),
+                                            new OA\Property(property: 'salaire', type: 'number', format: 'float', example: 450000),
+                                            new OA\Property(property: 'adresse', type: 'string', example: 'Lot II A 45 Antananarivo'),
+                                            new OA\Property(property: 'sexe', type: 'string', enum: ['masculin', 'feminin'], example: 'feminin'),
+                                            new OA\Property(property: 'date_naissance', type: 'string', format: 'date', example: '1995-08-12'),
+                                            new OA\Property(property: 'lieu_naissance', type: 'string', example: 'Antsirabe'),
+                                            new OA\Property(property: 'utilisateur_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                            new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                                            new OA\Property(
+                                                property: 'infos_dynamiques',
+                                                type: 'array',
+                                                items: new OA\Items(
+                                                    properties: [
+                                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                                        new OA\Property(property: 'staff_id', type: 'integer', example: 1),
+                                                        new OA\Property(property: 'nom_champ', type: 'string', example: 'diplome'),
+                                                        new OA\Property(property: 'valeur_champ', type: 'string', example: 'Master en Informatique'),
+                                                        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                                        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                                                    ],
+                                                    type: 'object'
+                                                )
+                                            ),
+                                            new OA\Property(
+                                                property: 'utilisateur',
+                                                type: 'object',
+                                                properties: [
+                                                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                                                    new OA\Property(property: 'nom', type: 'string', example: 'Admin'),
+                                                    new OA\Property(property: 'prenom', type: 'string', example: 'User'),
+                                                    new OA\Property(property: 'email', type: 'string', example: 'admin@example.com'),
+                                                ]
+                                            ),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(property: 'first_page_url', type: 'string'),
+                                new OA\Property(property: 'from', type: 'integer'),
+                                new OA\Property(property: 'last_page', type: 'integer'),
+                                new OA\Property(property: 'last_page_url', type: 'string'),
+                                new OA\Property(property: 'next_page_url', type: 'string', nullable: true),
+                                new OA\Property(property: 'path', type: 'string'),
+                                new OA\Property(property: 'per_page', type: 'integer'),
+                                new OA\Property(property: 'prev_page_url', type: 'string', nullable: true),
+                                new OA\Property(property: 'to', type: 'integer'),
+                                new OA\Property(property: 'total', type: 'integer'),
+                            ]
+                        ),
+                        new OA\Property(property: 'total', type: 'integer', example: 10),
+                        new OA\Property(property: 'per_page', type: 'integer', example: 20),
+                        new OA\Property(property: 'current_page', type: 'integer', example: 1),
+                        new OA\Property(property: 'last_page', type: 'integer', example: 1),
+                    ]
+                )
+            ),
             new OA\Response(response: 401, description: 'Non authentifie'),
             new OA\Response(response: 403, description: 'Acces reserve a l admin'),
         ]
@@ -266,6 +344,12 @@ class AdminSwagger
                     new OA\Property(property: 'sexe', type: 'string', enum: ['masculin', 'feminin'], example: 'feminin'),
                     new OA\Property(property: 'date_naissance', type: 'string', format: 'date', example: '1995-08-12'),
                     new OA\Property(property: 'lieu_naissance', type: 'string', example: 'Antsirabe'),
+                    new OA\Property(
+                        property: 'infos_dynamiques',
+                        type: 'object',
+                        description: 'Informations dynamiques supplementaires pour le staff',
+                        example: ['diplome' => 'Master en Informatique', 'experience' => '5 ans']
+                    ),
                 ]
             )
         ),
@@ -319,7 +403,62 @@ class AdminSwagger
             new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Detail du staff'),
+            new OA\Response(
+                response: 200,
+                description: 'Detail du staff',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Staff trouve avec succes'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'nom', type: 'string', example: 'Rabe'),
+                                new OA\Property(property: 'prenom', type: 'string', example: 'Marie'),
+                                new OA\Property(property: 'telephone', type: 'string', example: '0340011223'),
+                                new OA\Property(property: 'matricule', type: 'string', example: 'STF-0001'),
+                                new OA\Property(property: 'email', type: 'string', example: 'marie.rabe@ecole.local'),
+                                new OA\Property(property: 'fonction', type: 'string', example: 'Secretaire'),
+                                new OA\Property(property: 'salaire', type: 'number', format: 'float', example: 450000),
+                                new OA\Property(property: 'adresse', type: 'string', example: 'Lot II A 45 Antananarivo'),
+                                new OA\Property(property: 'sexe', type: 'string', enum: ['masculin', 'feminin'], example: 'feminin'),
+                                new OA\Property(property: 'date_naissance', type: 'string', format: 'date', example: '1995-08-12'),
+                                new OA\Property(property: 'lieu_naissance', type: 'string', example: 'Antsirabe'),
+                                new OA\Property(property: 'utilisateur_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                                new OA\Property(
+                                    property: 'infos_dynamiques',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'staff_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'nom_champ', type: 'string', example: 'diplome'),
+                                            new OA\Property(property: 'valeur_champ', type: 'string', example: 'Master en Informatique'),
+                                            new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                            new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+                                        ],
+                                        type: 'object'
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'utilisateur',
+                                    type: 'object',
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'nom', type: 'string', example: 'Admin'),
+                                        new OA\Property(property: 'prenom', type: 'string', example: 'User'),
+                                        new OA\Property(property: 'email', type: 'string', example: 'admin@example.com'),
+                                    ]
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
             new OA\Response(response: 401, description: 'Non authentifie'),
             new OA\Response(response: 403, description: 'Acces reserve a l admin'),
             new OA\Response(response: 404, description: 'Staff non trouve'),
@@ -351,6 +490,12 @@ class AdminSwagger
                     new OA\Property(property: 'sexe', type: 'string', enum: ['masculin', 'feminin'], example: 'feminin'),
                     new OA\Property(property: 'date_naissance', type: 'string', format: 'date', example: '1995-08-12'),
                     new OA\Property(property: 'lieu_naissance', type: 'string', example: 'Antsirabe'),
+                    new OA\Property(
+                        property: 'infos_dynamiques',
+                        type: 'object',
+                        description: 'Informations dynamiques supplementaires pour le staff',
+                        example: ['diplome' => 'Master en Informatique', 'experience' => '5 ans']
+                    ),
                 ]
             )
         ),

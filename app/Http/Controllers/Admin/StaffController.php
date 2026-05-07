@@ -8,7 +8,7 @@ use App\Models\Staff;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; 
+use Illuminate\Support\Facades\DB;
 
 class StaffController extends Controller
 {
@@ -17,7 +17,7 @@ class StaffController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Staff::with('utilisateur');
+        $query = Staff::with(['utilisateur', 'infosDynamiques']);
 
         // Filtre par fonction
         if ($request->has('fonction')) {
@@ -26,7 +26,7 @@ class StaffController extends Controller
 
         // Filtre par sexe
         if ($request->has('sexe')) {
-            $query->where('sexe', $request->sexe);
+            $query->where('sexe', '=', $request->sexe);
         }
 
         // Recherche
@@ -94,6 +94,18 @@ class StaffController extends Controller
             'utilisateur_id' => Auth::id(),
         ]);
 
+        // Enregistrement des informations dynamiques
+        if ($request->has('infos_dynamiques') && is_array($request->infos_dynamiques)) {
+            foreach ($request->infos_dynamiques as $nom_champ => $valeur_champ) {
+                if (!empty($nom_champ)) {
+                    $staff->infosDynamiques()->create([
+                        'nom_champ' => $nom_champ,
+                        'valeur_champ' => $valeur_champ
+                    ]);
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Staff créé avec succès',
@@ -106,7 +118,7 @@ class StaffController extends Controller
      */
     public function show($id)
     {
-        $staff = Staff::with('utilisateur')->find($id);
+        $staff = Staff::with(['utilisateur', 'infosDynamiques'])->find($id);
 
         if (!$staff) {
             return response()->json([
@@ -171,6 +183,20 @@ class StaffController extends Controller
             'lieu_naissance'
         ]));
 
+        // Mise à jour des informations dynamiques
+        if ($request->has('infos_dynamiques') && is_array($request->infos_dynamiques)) {
+            // Optionnel : on peut choisir de supprimer les anciennes ou de mettre à jour au cas par cas
+            // Ici, on va faire un updateOrCreate pour chaque champ
+            foreach ($request->infos_dynamiques as $nom_champ => $valeur_champ) {
+                if (!empty($nom_champ)) {
+                    $staff->infosDynamiques()->updateOrCreate(
+                        ['staff_id' => $staff->id, 'nom_champ' => $nom_champ],
+                        ['valeur_champ' => $valeur_champ]
+                    );
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Staff modifié avec succès',
@@ -207,7 +233,7 @@ class StaffController extends Controller
     {
         $stats = [
             'total' => Staff::count(),
-            'par_fonction' => Staff::select('fonction', 
+            'par_fonction' => Staff::select('fonction',
             DB::raw('count(*) as total'))
                 ->groupBy('fonction')
                 ->get(),
@@ -239,7 +265,7 @@ class StaffController extends Controller
         }
 
         $staffs = $query->orderBy('nom')->get([
-            'matricule', 'nom', 'prenom', 'fonction', 
+            'matricule', 'nom', 'prenom', 'fonction',
             'telephone', 'email', 'salaire', 'sexe'
         ]);
 

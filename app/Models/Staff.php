@@ -29,4 +29,8 @@ class Staff extends Model
         return $this->belongsTo(Utilisateur::class, 'utilisateur_id');
     }
 
+    public function infosDynamiques()
+    {
+        return $this->hasMany(AutreInformationStaff::class, 'staff_id');
+    }
 }

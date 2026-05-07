@@ -64,9 +64,9 @@ class StaffController extends Controller
             'telephone' => 'required|string|max:20',
             'matricule' => 'required|string|max:20|unique:staffs,matricule',
             'email' => 'required|email|max:50|unique:staffs,email',
-            'fonction' => 'required|string|max:75',
+            'fonction' => 'required|string|max:50',
             'salaire' => 'required|numeric|min:0',
-            'adresse' => 'required|string|max:100',
+            'adresse' => 'required|string|max:75',
             'sexe' => 'required|in:masculin,feminin',
             'date_naissance' => 'required|date',
             'lieu_naissance' => 'required|string|max:50',
@@ -95,16 +95,7 @@ class StaffController extends Controller
         ]);
 
         // Enregistrement des informations dynamiques
-        if ($request->has('infos_dynamiques') && is_array($request->infos_dynamiques)) {
-            foreach ($request->infos_dynamiques as $nom_champ => $valeur_champ) {
-                if (!empty($nom_champ)) {
-                    $staff->infosDynamiques()->create([
-                        'nom_champ' => $nom_champ,
-                        'valeur_champ' => $valeur_champ
-                    ]);
-                }
-            }
-        }
+        $this->saveDynamicInfos($staff, $request);
 
         return response()->json([
             'success' => true,
@@ -154,9 +145,9 @@ class StaffController extends Controller
             'telephone' => 'sometimes|required|string|max:20',
             'matricule' => 'sometimes|required|string|max:20|unique:staffs,matricule,' . $id,
             'email' => 'sometimes|required|email|max:50|unique:staffs,email,' . $id,
-            'fonction' => 'sometimes|required|string|max:75',
+            'fonction' => 'sometimes|required|string|max:50',
             'salaire' => 'sometimes|required|numeric|min:0',
-            'adresse' => 'sometimes|required|string|max:100',
+            'adresse' => 'sometimes|required|string|max:75',
             'sexe' => 'sometimes|required|in:masculin,feminin',
             'date_naissance' => 'sometimes|required|date',
             'lieu_naissance' => 'sometimes|required|string|max:50',
@@ -184,18 +175,7 @@ class StaffController extends Controller
         ]));
 
         // Mise à jour des informations dynamiques
-        if ($request->has('infos_dynamiques') && is_array($request->infos_dynamiques)) {
-            // Optionnel : on peut choisir de supprimer les anciennes ou de mettre à jour au cas par cas
-            // Ici, on va faire un updateOrCreate pour chaque champ
-            foreach ($request->infos_dynamiques as $nom_champ => $valeur_champ) {
-                if (!empty($nom_champ)) {
-                    $staff->infosDynamiques()->updateOrCreate(
-                        ['staff_id' => $staff->id, 'nom_champ' => $nom_champ],
-                        ['valeur_champ' => $valeur_champ]
-                    );
-                }
-            }
-        }
+        $this->saveDynamicInfos($staff, $request, true);
 
         return response()->json([
             'success' => true,
@@ -274,5 +254,63 @@ class StaffController extends Controller
             'data' => $staffs,
             'total' => $staffs->count()
         ]);
+    }
+    /**
+     * Helper pour enregistrer les infos dynamiques depuis différentes structures
+     */
+    private function saveDynamicInfos($staff, $request, $isUpdate = false)
+    {
+        if ($isUpdate) {
+            $staff->infosDynamiques()->delete();
+        }
+
+        // Cas 1 : Structure standard (objet plat)
+        if ($request->has('infos_dynamiques') && is_array($request->infos_dynamiques)) {
+            foreach ($request->infos_dynamiques as $nom => $valeur) {
+                if (!empty($nom)) {
+                    $staff->infosDynamiques()->create([
+                        'nom_champ' => $nom,
+                        'valeur_champ' => $valeur
+                    ]);
+                }
+            }
+        }
+
+        // Cas 2 : Structure frontend multi-step (autres_donnees)
+        if ($request->has('autres_donnees')) {
+            $autres = $request->autres_donnees;
+            
+            // Infos personnelles
+            if (isset($autres['informations_personnelles']) && is_array($autres['informations_personnelles'])) {
+                foreach ($autres['informations_personnelles'] as $row) {
+                    if (!empty($row['label'])) {
+                        $staff->infosDynamiques()->create([
+                            'nom_champ' => $row['label'],
+                            'valeur_champ' => $row['value'] ?? ''
+                        ]);
+                    }
+                }
+            }
+
+            // Infos pro
+            if (isset($autres['informations_professionnelles']) && is_array($autres['informations_professionnelles'])) {
+                foreach ($autres['informations_professionnelles'] as $row) {
+                    if (!empty($row['label'])) {
+                        $staff->infosDynamiques()->create([
+                            'nom_champ' => $row['label'],
+                            'valeur_champ' => $row['value'] ?? ''
+                        ]);
+                    }
+                }
+            }
+
+            // Notes
+            if (!empty($autres['notes'])) {
+                $staff->infosDynamiques()->create([
+                    'nom_champ' => 'Notes',
+                    'valeur_champ' => $autres['notes']
+                ]);
+            }
+        }
     }
 }

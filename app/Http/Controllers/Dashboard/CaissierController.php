@@ -9,6 +9,7 @@ use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
 use App\Models\Paiement\ResumePaiement;
+use App\Models\Paiement\Recu;
 use App\Models\Finance\Entree;
 use App\Models\Finance\Sortie;
 use Carbon\Carbon;
@@ -50,7 +51,7 @@ class CaissierController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'statistiques' => [
+                'statistique' => [
                     // Encaissements
                     'total_encaissements'          => $totalEncaissements,
                     'total_encaissements_formatte'  => $this->formatterMontant($totalEncaissements),
@@ -60,6 +61,11 @@ class CaissierController extends Controller
                     // Décaissements (sorties réelles)
                     'total_sorties'                 => $totalSorties,
                     'total_sorties_formatte'        => $this->formatterMontant($totalSorties),
+                    
+                    // Aliases pour le frontend
+                    'total_collecte'                => $totalEncaissements,
+                    'total_decaissements'           => $totalSorties,
+                    'nombre_recus'                  => $this->getNombreRecus($anneeActive),
 
                     // Montants attendus / Impayés
                     'total_restant_du'              => $totalRestant,
@@ -78,7 +84,7 @@ class CaissierController extends Controller
                     'taux_recouvrement'             => $tauxRecouvrement,
                     'taux_recouvrement_formatte'    => $tauxRecouvrement . '%',
 
-                    // Compatibilité anciens champs (ne pas casser le frontend existant)
+                    // Compatibilité anciens champs
                     'total_prevu'                   => $totalDu,
                     'total_prevu_formatte'          => $this->formatterMontant($totalDu),
                     'total_prevu_mois'              => $totalEncaissementsMois,
@@ -86,6 +92,8 @@ class CaissierController extends Controller
                     'total_entree_mois'             => $totalEncaissementsMois,
                     'total_entree_mois_formatte'    => $this->formatterMontant($totalEncaissementsMois),
                 ],
+                'evolution_mensuelle'   => $this->getEvolutionMensuelle($anneeActive),
+                'repartition_classe'    => $this->getRepartitionParClasse($anneeActive),
                 'transactions_recentes' => $transactionsRecentes,
                 'historique_recent'     => $historiqueRecent,
                 'date_rappel'           => $now->format('d/m/Y H:i:s'),
@@ -286,5 +294,87 @@ class CaissierController extends Controller
             return 'Ar ' . number_format($montant / 1_000, 1, '.', '') . 'K';
         }
         return 'Ar ' . number_format($montant, 0, ',', ' ');
+    }
+
+    /**
+     * Retourne le nombre total de reçus émis pour l'année active.
+     */
+    private function getNombreRecus(?AnneeScolaire $anneeActive): int
+    {
+        if (!$anneeActive) return 0;
+
+        return (int) Recu::whereHas('paiement.inscription', function ($q) use ($anneeActive) {
+            $q->where('id_annee_scolaire', $anneeActive->id);
+        })->count();
+    }
+
+    /**
+     * Évolution mensuelle des encaissements et décaissements sur les 6 derniers mois.
+     */
+    private function getEvolutionMensuelle(?AnneeScolaire $anneeActive): array
+    {
+        if (!$anneeActive) return [];
+
+        $data = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $date = Carbon::now()->subMonths($i);
+            $mois = $date->month;
+            $an = $date->year;
+
+            $encaissements = (float) Entree::where('annee_scolaire_id', $anneeActive->id)
+                ->whereMonth('date_entree', $mois)
+                ->whereYear('date_entree', $an)
+                ->sum('montant');
+
+            $decaissements = (float) Sortie::where('annee_scolaire_id', $anneeActive->id)
+                ->whereMonth('date_sortie', $mois)
+                ->whereYear('date_sortie', $an)
+                ->sum('montant');
+
+            $data[] = [
+                'month'         => strtoupper($date->translatedFormat('M')),
+                'encaissements' => $encaissements,
+                'decaissements' => $decaissements,
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Répartition des paiements par cycle (Maternelle, Primaire, Collège, Lycée).
+     */
+    private function getRepartitionParClasse(?AnneeScolaire $anneeActive): array
+    {
+        if (!$anneeActive) return [];
+
+        $cycles = ['Maternelle', 'Primaire', 'Collège', 'Lycée'];
+        $colors = ['#8B5CF6', '#F59E0B', '#10B981', '#3B82F6'];
+        $data = [];
+
+        foreach ($cycles as $index => $cycle) {
+            $total = (float) Paiement::whereHas('inscription', function ($q) use ($anneeActive, $cycle) {
+                $q->where('id_annee_scolaire', $anneeActive->id)
+                  ->whereHas('classe.niveau', function ($sq) use ($cycle) {
+                      $sq->where('cycle', $cycle);
+                  });
+            })->sum('montant');
+
+            $data[] = [
+                'name'  => $cycle,
+                'value' => $total,
+                'color' => $colors[$index],
+            ];
+        }
+
+        // Calculer les pourcentages
+        $totalGeneral = array_sum(array_column($data, 'value'));
+        if ($totalGeneral > 0) {
+            foreach ($data as &$item) {
+                $item['value'] = round(($item['value'] / $totalGeneral) * 100, 1);
+            }
+        }
+
+        return $data;
     }
 }

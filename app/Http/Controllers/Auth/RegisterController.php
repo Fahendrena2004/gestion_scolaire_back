@@ -36,7 +36,7 @@ class RegisterController extends Controller
                 'prenom' => $request->prenom,
                 'telephone' => $request->telephone,
                 'email' => $request->email,
-                'password' => Hash::make($request->password),
+                'password' => $request->password, // Le modèle Utilisateur gère le hachage
                 'role' => $request->role,
                 'status' => 'actif'
             ]);

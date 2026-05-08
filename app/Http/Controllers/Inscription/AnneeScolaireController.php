@@ -167,16 +167,11 @@ class AnneeScolaireController extends Controller
 
         $config = $this->chargerConfiguration($annee->id);
 
-        if (!$config->est_inscription_ouverte) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Inscription non trouvée (la période d\'inscription est fermée pour cette année scolaire)',
-                'data' => $config
-            ], 404);
-        }
-
         return response()->json([
             'success' => true,
+            'message' => $config->est_inscription_ouverte
+                ? 'Année scolaire active trouvée'
+                : 'Année scolaire active trouvée, mais la période d inscription est fermée',
             'data' => $config,
         ]);
     }

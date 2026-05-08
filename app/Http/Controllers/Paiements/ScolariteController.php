@@ -30,20 +30,40 @@ class ScolariteController extends Controller
 
         $montantMensuel = $this->getMontantMensuel($inscription);
         $moisAnnee = $this->genererMoisAnneeScolaire($inscription);
+        
         $moisPayes = PaiementMensuel::whereHas('resume', function ($query) use ($inscriptionId) {
             $query->where('inscription_id', $inscriptionId);
         })->get()->keyBy(fn ($item) => $item->annee . '-' . $item->mois);
 
-        $mois = collect($moisAnnee)->map(function ($periode) use ($moisPayes, $montantMensuel) {
+        // Fetch all partial payments for scolarite to calculate exactly how much was paid
+        $paiementsPartiels = Paiement::where('inscription_id', $inscriptionId)
+            ->where('type', 'scolarite_mensuelle')
+            ->get();
+            
+        $sommePartielle = [];
+        foreach ($paiementsPartiels as $p) {
+            $details = is_string($p->details) ? json_decode($p->details, true) : $p->details;
+            if (is_array($details) && isset($details['mois']) && isset($details['annee'])) {
+                $key = $details['annee'] . '-' . $details['mois'];
+                $sommePartielle[$key] = ($sommePartielle[$key] ?? 0) + (float) $p->montant;
+            }
+        }
+
+        $mois = collect($moisAnnee)->map(function ($periode) use ($moisPayes, $montantMensuel, $sommePartielle) {
             $key = $periode['annee'] . '-' . $periode['mois'];
             $lignePaye = $moisPayes->get($key);
+            
+            $dejaPaye = $lignePaye ? $montantMensuel : ($sommePartielle[$key] ?? 0);
 
             return [
                 'libelle' => $this->libelleMois($periode['mois'], $periode['annee']),
                 'mois' => $periode['mois'],
                 'annee' => $periode['annee'],
                 'montant' => $montantMensuel,
-                'est_paye' => !is_null($lignePaye),
+                'montant_initial' => $montantMensuel,
+                'montant_paye' => $dejaPaye,
+                'montant_restant' => max(0, $montantMensuel - $dejaPaye),
+                'est_paye' => $lignePaye !== null || $dejaPaye >= ($montantMensuel - 0.01),
                 'paiement_mensuel_id' => $lignePaye?->id,
                 'paiement_id' => $lignePaye?->paiement_id,
                 'date_paiement' => $lignePaye?->paiement?->date_paiement?->format('d/m/Y'),
@@ -55,7 +75,7 @@ class ScolariteController extends Controller
             'data' => [
                 'eleve' => $this->formatEleve($inscription),
                 'mois' => $mois,
-                'total_restant' => $mois->where('est_paye', false)->sum('montant'),
+                'total_restant' => $mois->sum('montant_restant'),
             ],
         ]);
     }
@@ -108,16 +128,46 @@ class ScolariteController extends Controller
                 ], 422);
             }
 
+            // --- NOUVELLE LOGIQUE DE PAIEMENT PARTIEL ---
+            $montantMensuel = $this->getMontantMensuel($inscription);
+            $userId = $this->getUtilisateurId($request);
+            
+            // 1. Calcul du montant à distribuer
+            $montantVerseTotal = (float) $request->input('montant_verse', 0);
+            if ($montantVerseTotal <= 0) {
+                $montantVerseTotal = $montantMensuel * count($moisDemandes);
+            }
+            $resteADistribuer = $montantVerseTotal;
+
+            // 2. Historique des paiements partiels existants
+            $paiementsPartiels = Paiement::where('inscription_id', $inscription->id)
+                ->where('type', 'scolarite_mensuelle')
+                ->get();
+                
+            $sommePartielle = [];
+            foreach ($paiementsPartiels as $p) {
+                $details = is_string($p->details) ? json_decode($p->details, true) : $p->details;
+                if (is_array($details) && isset($details['mois']) && isset($details['annee'])) {
+                    $key = $details['annee'] . '-' . $details['mois'];
+                    $sommePartielle[$key] = ($sommePartielle[$key] ?? 0) + (float) $p->montant;
+                }
+            }
+
             $paiementsEnregistres = [];
-            $totalMontant = 0;
+            $totalMontantReellementPaye = 0;
 
             foreach ($moisDemandes as $periode) {
+                if ($resteADistribuer <= 0) {
+                    break;
+                }
+
                 $key = $periode['annee'] . '-' . $periode['mois'];
 
                 if (!$moisAutorises->has($key)) {
                     continue;
                 }
 
+                // Si le mois est déjà verrouillé (PaiementMensuel existe), on saute
                 $existant = PaiementMensuel::where('resume_id', $resume->id)
                     ->where('mois', $periode['mois'])
                     ->where('annee', $periode['annee'])
@@ -127,41 +177,57 @@ class ScolariteController extends Controller
                     continue;
                 }
 
+                $dejaPaye = $sommePartielle[$key] ?? 0;
+                $resteAPayerPourCeMois = max(0, $montantMensuel - $dejaPaye);
+
+                if ($resteAPayerPourCeMois <= 0) {
+                    continue; 
+                }
+
+                $montantAPayerMois = min($resteAPayerPourCeMois, $resteADistribuer);
+                $resteADistribuer -= $montantAPayerMois;
+
+                // 3. Création de la transaction (acompte ou solde)
                 $paiement = Paiement::create([
                     'reference' => $this->genererReference(),
                     'inscription_id' => $inscription->id,
                     'type_frais_id' => $typeFraisId,
                     'type' => 'scolarite_mensuelle',
-                    'libelle' => $this->libelleMois($periode['mois'], $periode['annee']),
+                    'libelle' => $this->libelleMois($periode['mois'], $periode['annee']) . ($montantAPayerMois < $resteAPayerPourCeMois ? ' (Acompte)' : ''),
                     'details' => $periode,
-                    'montant' => $montantMensuel,
+                    'montant' => $montantAPayerMois,
                     'date_paiement' => now(),
                     'utilisateur_id' => $userId,
                 ]);
 
-                $ligne = PaiementMensuel::create([
-                    'resume_id' => $resume->id,
-                    'mois' => $periode['mois'],
-                    'annee' => $periode['annee'],
-                    'montant' => $montantMensuel,
-                    'paiement_id' => $paiement->id,
-                ]);
+                // 4. Verrouillage du mois si soldé
+                $ligneId = null;
+                if (($dejaPaye + $montantAPayerMois) >= ($montantMensuel - 0.01)) {
+                    $ligne = PaiementMensuel::create([
+                        'resume_id' => $resume->id,
+                        'mois' => $periode['mois'],
+                        'annee' => $periode['annee'],
+                        'montant' => $montantMensuel,
+                        'paiement_id' => $paiement->id,
+                    ]);
+                    $ligneId = $ligne->id;
+                }
 
                 $recu = Recu::create([
                     'numero' => Recu::genererNumero(),
                     'paiement_id' => $paiement->id,
                     'inscription_id' => $inscription->id,
-                    'montant' => $montantMensuel,
+                    'montant' => $montantAPayerMois,
                     'date_emission' => now(),
                     'libelle' => 'Scolarite - ' . $this->libelleMois($periode['mois'], $periode['annee']),
                     'details' => json_encode($periode),
                 ]);
 
-                $totalMontant += $montantMensuel;
+                $totalMontantReellementPaye += $montantAPayerMois;
                 $paiementsEnregistres[] = [
-                    'paiement_mensuel_id' => $ligne->id,
+                    'paiement_mensuel_id' => $ligneId,
                     'mois' => $this->libelleMois($periode['mois'], $periode['annee']),
-                    'montant' => $montantMensuel,
+                    'montant' => $montantAPayerMois,
                     'paiement_id' => $paiement->id,
                     'recu_id' => $recu->id,
                 ];
@@ -177,15 +243,15 @@ class ScolariteController extends Controller
 
             // --- INTEGRATION FINANCE ---
             $typeScolarite = CategorieEntree::where('nom', 'like', '%Scolarité%')->first();
-            if ($typeScolarite) {
+            if ($typeScolarite && $totalMontantReellementPaye > 0) {
                 Entree::create([
                     'reference' => 'ENT-SCO-' . time(),
-                    'montant' => $totalMontant,
+                    'montant' => $totalMontantReellementPaye,
                     'date_entree' => now(),
                     'type_entree_id' => $typeScolarite->id,
                     'inscription_id' => $inscription->id,
                     'annee_scolaire_id' => $inscription->id_annee_scolaire,
-                    'description' => 'Paiement scolarité pour ' . count($paiementsEnregistres) . ' mois',
+                    'description' => 'Paiement scolarité (' . count($paiementsEnregistres) . ' transaction(s))',
                     'created_by' => $userId
                 ]);
 
@@ -193,7 +259,7 @@ class ScolariteController extends Controller
                     ['annee_scolaire_id' => $inscription->id_annee_scolaire],
                     ['nom' => 'Caisse Principale', 'solde' => 0]
                 );
-                $caisse->increment('solde', $totalMontant);
+                $caisse->increment('solde', $totalMontantReellementPaye);
             }
             // ---------------------------
 
@@ -205,7 +271,7 @@ class ScolariteController extends Controller
                 'success' => true,
                 'message' => 'Paiement de la scolarite effectue avec succes',
                 'data' => [
-                    'total_paye' => $totalMontant,
+                    'total_paye' => $totalMontantReellementPaye,
                     'nombre_mois' => count($paiementsEnregistres),
                     'paiements' => $paiementsEnregistres,
                 ],

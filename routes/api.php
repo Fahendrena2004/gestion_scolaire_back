@@ -100,19 +100,19 @@ Route::middleware('auth:sanctum')->group(function () {
             // Années scolaires (CRUD admin)
             Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
             Route::get('/annee-scolaire', [AnneeScolaireController::class, 'index']); // Alias
-            
+
             Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
             Route::get('/annee-scolaire/active', [AnneeScolaireController::class, 'getActive']); // Alias
-            
+
             Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
             Route::post('/annee-scolaire', [AnneeScolaireController::class, 'store']); // Alias
-            
+
             Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id');
             Route::get('/annee-scolaire/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id'); // Alias
-            
+
             Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id');
             Route::put('/annee-scolaire/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id'); // Alias
-            
+
             Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id');
             Route::delete('/annee-scolaire/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id'); // Alias
 
@@ -165,6 +165,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::get('/cycles', [CycleController::class, 'index']);
 
+            // Années scolaires (accessible aux caissiers aussi)
+            Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
+
             // Niveaux
             Route::get('/niveaux', [NiveauController::class, 'index']);
             Route::get('/niveaux/{cycle}', [NiveauController::class, 'getByCycle']);
@@ -193,6 +196,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [InscriptionController::class, 'index']);
             Route::post('/', [InscriptionController::class, 'store']);
             Route::get('/{id}', [InscriptionController::class, 'show']);
+            Route::put('/{id}', [InscriptionController::class, 'update']);
             Route::get('/{id}/infos-dynamiques', [InscriptionController::class, 'getDynamicInfos']);
 
             // Paiements d'une inscription
@@ -220,7 +224,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,caissier')->group(function () {
-        
+
         // ─── MATIÈRES ─────────────────────────────────────────────────────────
         Route::prefix('matieres')->group(function () {
             Route::get('/', [MatieresController::class, 'index']);

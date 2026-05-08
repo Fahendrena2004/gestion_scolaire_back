@@ -18,6 +18,7 @@ use App\Models\Finance\Entree;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class InscriptionController extends Controller
@@ -69,7 +70,12 @@ class InscriptionController extends Controller
         $currentUser   = $request->user();
         $utilisateurId = $currentUser ? (int) $currentUser->getKey() : null;
 
-        $validator = Validator::make($request->all(), [
+        $payload = $request->all();
+        if (isset($payload['classe_id']) && (int) $payload['classe_id'] === 0) {
+            $payload['classe_id'] = null;
+        }
+
+        $validator = Validator::make($payload, [
             'nom'                    => 'required|string|max:100',
             'prenom'                 => 'required|string|max:100',
             'date_naissance'         => 'required|date|before:today',
@@ -121,8 +127,9 @@ class InscriptionController extends Controller
         */
 
         // Résoudre la classe : manuelle ou automatique
-        if ($request->filled('classe_id')) {
-            $classe = Classe::with('niveau')->find($request->classe_id);
+        $classeId = (int) $request->input('classe_id');
+        if ($classeId > 0) {
+            $classe = Classe::with('niveau')->find($classeId);
 
             if (!$classe) {
                 return response()->json([
@@ -131,7 +138,7 @@ class InscriptionController extends Controller
                 ], 404);
             }
 
-            if ((int) $classe->niveau_id !== (int) $request->niveau_id) {
+            if ((int) $classe->niveau_id !== (int) $request->input('niveau_id')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'La classe selectionnee ne correspond pas au niveau fourni.',
@@ -146,7 +153,7 @@ class InscriptionController extends Controller
             }
         } else {
             // Attribution automatique : première classe disponible du niveau
-            $classe = $this->trouverClasseDisponible($request->niveau_id, $anneeActive->id);
+            $classe = $this->trouverClasseDisponible($request->input('niveau_id'), $anneeActive->id);
 
             if (!$classe) {
                 return response()->json([
@@ -175,6 +182,17 @@ class InscriptionController extends Controller
                     'adresse'         => $request->adresse,
                     'matricule'       => $this->genererMatricule($classe->niveau->cycle),
                 ]);
+            }
+
+            if (Inscription::where('id_eleve', $eleve->id)
+                ->where('id_annee_scolaire', $anneeActive->id)
+                ->exists()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cet élève est déjà inscrit pour l’année scolaire active.',
+                ], 422);
             }
 
             $this->enregistrerInformationDynamique($eleve->id, 'responsable_nom', $request->responsable_nom);
@@ -235,6 +253,7 @@ class InscriptionController extends Controller
             ], 201);
         } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Inscription store failed', ['exception' => $e]);
 
             return response()->json([
                 'success' => false,
@@ -268,6 +287,158 @@ class InscriptionController extends Controller
             'success' => true,
             'data'    => $inscription,
         ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $inscription = Inscription::with('eleve')->find($id);
+
+        if (!$inscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inscription non trouvee',
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'nom'                   => 'sometimes|required|string|max:100',
+            'prenom'                => 'sometimes|required|string|max:100',
+            'date_naissance'        => 'sometimes|required|date|before:today',
+            'lieu_naissance'        => 'sometimes|required|string|max:150',
+            'sexe'                  => 'sometimes|required|in:M,F',
+            'niveau_id'             => 'sometimes|required|exists:niveaux,id',
+            'classe_id'             => 'sometimes|nullable|exists:classes,id',
+            'adresse'               => 'sometimes|nullable|string|max:255',
+            'parascolaire'          => 'sometimes|boolean',
+            'cantine'               => 'sometimes|boolean',
+            'responsable_nom'       => 'sometimes|nullable|string|max:150',
+            'responsable_telephone' => 'sometimes|nullable|string|max:30',
+            'dynamic_infos'         => 'sometimes|array',
+            'dynamic_infos.*.libelle' => 'sometimes|required|string',
+            'dynamic_infos.*.valeur' => 'sometimes|required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $eleve = $inscription->eleve;
+        if (!$eleve) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Eleve lie a l inscription non trouve',
+            ], 404);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            if ($request->filled('classe_id') && $request->classe_id !== $inscription->id_classe) {
+                $nouvelleClasse = Classe::find($request->classe_id);
+
+                if (!$nouvelleClasse) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Classe non trouvee.',
+                    ], 404);
+                }
+
+                if ($request->filled('niveau_id') && (int) $nouvelleClasse->niveau_id !== (int) $request->niveau_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La classe selectionnee ne correspond pas au niveau fourni.',
+                    ], 422);
+                }
+
+                if ($nouvelleClasse->estPleine()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La classe ' . $nouvelleClasse->nom_classe . ' est pleine. Choisissez une autre classe.',
+                    ], 422);
+                }
+
+                $ancienneClasse = Classe::find($inscription->id_classe);
+                if ($ancienneClasse && $ancienneClasse->id !== $nouvelleClasse->id) {
+                    $ancienneClasse->decrement('effectif');
+                    $nouvelleClasse->increment('effectif');
+                }
+
+                $inscription->id_classe = $nouvelleClasse->id;
+            }
+
+            if ($request->filled('nom')) {
+                $eleve->nom = $request->nom;
+            }
+            if ($request->filled('prenom')) {
+                $eleve->prenom = $request->prenom;
+            }
+            if ($request->filled('date_naissance')) {
+                $eleve->date_naissance = $request->date_naissance;
+            }
+            if ($request->filled('lieu_naissance')) {
+                $eleve->lieu_naissance = $request->lieu_naissance;
+            }
+            if ($request->filled('sexe')) {
+                $eleve->sexe = $request->sexe;
+            }
+            if ($request->filled('adresse')) {
+                $eleve->adresse = $request->adresse;
+            }
+            $eleve->save();
+
+            if ($request->has('parascolaire')) {
+                $inscription->parascolaire = $request->boolean('parascolaire');
+            }
+            if ($request->has('cantine')) {
+                $inscription->cantine = $request->boolean('cantine');
+            }
+
+            $inscription->save();
+
+            if ($request->filled('responsable_nom')) {
+                $this->enregistrerInformationDynamique($eleve->id, 'responsable_nom', $request->responsable_nom);
+            }
+            if ($request->filled('responsable_telephone')) {
+                $this->enregistrerInformationDynamique($eleve->id, 'responsable_telephone', $request->responsable_telephone);
+            }
+            if ($request->has('dynamic_infos') && is_array($request->dynamic_infos)) {
+                foreach ($request->dynamic_infos as $info) {
+                    if (!empty($info['libelle']) && isset($info['valeur'])) {
+                        $this->enregistrerInformationDynamique($eleve->id, $info['libelle'], $info['valeur']);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $inscription->load([
+                'eleve.infosDynamiques',
+                'classe.niveau',
+                'anneeScolaire',
+                'fraisAppliques.typeFrais',
+                'paiements.utilisateur',
+                'paiements.typeFrais',
+                'resumePaiement.paiementsMensuels.paiement',
+                'presencesCantine.paiement',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inscription mise a jour',
+                'data'    => $inscription,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise a jour de l inscription',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function getDynamicInfos($id)
@@ -331,7 +502,7 @@ class InscriptionController extends Controller
             ->where('anneeScolaire_id', $anneeActive->id)
             ->orderBy('code_division', 'asc')
             ->get()
-            ->map(function ($classe) {
+            ->map(function (Classe $classe) {
                 $max = $classe->max_effectif ?? 50;
                 return [
                     'id'            => $classe->id,
@@ -510,7 +681,7 @@ class InscriptionController extends Controller
 private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
     {
         $query = TypeFrais::query();
-        
+
         $query->where(function ($q) use ($libelle) {
             $q->where('libelle', $libelle)
               ->orWhere('libelle', 'like', '%' . $libelle . '%');
@@ -525,9 +696,9 @@ private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrai
             $query->whereNull('annee_scolaire_id');
         }
 
-        return $query->orderByRaw('CASE 
-                WHEN libelle = ? THEN 0 
-                WHEN annee_scolaire_id IS NOT NULL THEN 1 
+        return $query->orderByRaw('CASE
+                WHEN libelle = ? THEN 0
+                WHEN annee_scolaire_id IS NOT NULL THEN 1
                 ELSE 2 END', [$libelle])
             ->first();
     }

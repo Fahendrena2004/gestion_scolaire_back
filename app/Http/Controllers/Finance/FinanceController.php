@@ -11,6 +11,7 @@ use App\Models\Finance\EntreeArchive;
 use App\Models\Finance\Sortie;
 use App\Models\Finance\SortieArchive;
 use App\Models\Inscription\AnneeScolaire;
+use App\Models\Inscription\Inscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -21,7 +22,11 @@ class FinanceController extends Controller
     {
         $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
         if (!$anneeScolaire) {
-            return response()->json(['success' => false, 'message' => 'Aucune année scolaire active.'], 404);
+            $anneeScolaire = AnneeScolaire::latest()->first();
+        }
+
+        if (!$anneeScolaire) {
+            return response()->json(['success' => false, 'message' => 'Aucune année scolaire trouvée.'], 404);
         }
 
         $caisse = Caisse::firstOrCreate(
@@ -34,12 +39,24 @@ class FinanceController extends Controller
             ->where('statut', 'paye')
             ->sum('montant');
 
+        $totalInscriptions = Inscription::where('id_annee_scolaire', $anneeScolaire->id)->count();
+
+        // Donations (type_entree_id qui correspond à 'Donation')
+        $totalDonations = Entree::where('annee_scolaire_id', $anneeScolaire->id)
+            ->whereHas('type', function($q) {
+                $q->where('nom', 'LIKE', '%donation%');
+            })->sum('montant');
+
         return response()->json([
             'success' => true,
             'data' => [
                 'solde_actuel' => $caisse->solde,
+                'solde' => $caisse->solde,
                 'total_entrees' => $totalEntrees,
                 'total_sorties' => $totalSorties,
+                'total_inscriptions' => $totalInscriptions,
+                'total_donations' => $totalDonations,
+                'factures_impayees' => 0, // À implémenter si besoin
                 'caisse' => $caisse,
                 'annee_scolaire' => $anneeScolaire->libelle
             ]

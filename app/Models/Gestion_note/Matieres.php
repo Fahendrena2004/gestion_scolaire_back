@@ -4,7 +4,6 @@ namespace App\Models\Gestion_note;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Inscription\Classe;
-use App\Models\Inscription\Niveau;
 
 class Matieres extends Model
 {

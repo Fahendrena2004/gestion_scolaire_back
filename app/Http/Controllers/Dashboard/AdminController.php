@@ -58,16 +58,7 @@ class AdminController extends Controller
         ->groupBy('niveaux.cycle')
         ->get();
 
-        // 7. Répartition par catégorie de revenus
-        $repartitionCategories = Entree::when($yearId, function($q) use ($yearId) {
-            return $q->where('annee_scolaire_id', $yearId);
-        })
-        ->join('categories_entrees', 'entrees.type_entree_id', '=', 'categories_entrees.id')
-        ->select('categories_entrees.nom', DB::raw('sum(montant) as total'))
-        ->groupBy('categories_entrees.nom')
-        ->get();
-
-        // 8. Activités récentes
+        // 7. Activités récentes
         $activitesRecentes = $this->getActivitesRecentes($yearId);
 
         return response()->json([
@@ -81,7 +72,6 @@ class AdminController extends Controller
                 ],
                 'evolution_mensuelle' => $evolutionMensuelle, // suive evolution par mois
                 'repartition_cycle' => $repartitionCycle, // repartition par cycle
-                'repartition_categories' => $repartitionCategories, // repartition par type de frais (Scolarite, Cantine...)
                 'activites_recentes' => $activitesRecentes, // activie recente (paie frais, salaire, etc.)
                 'annee_scolaire' => $currentYear ? $currentYear->libelle : 'Toutes les années',
             ]

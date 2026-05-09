@@ -28,7 +28,7 @@ class NotesController extends Controller
     public function index(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'eleve_id' => 'required|exists:eleves,id',
+            'eleve_id' => 'nullable|exists:eleves,id',
             'periode' => 'nullable|string|in:' . implode(',', self::PERIODES_VALIDES),
         ]);
 
@@ -36,20 +36,24 @@ class NotesController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $inscription = Inscription::where('id_eleve', $request->eleve_id)->latest('created_at')->first();
-        if (!$inscription) {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-            ]);
+        $query = Notes::with(['matiere', 'inscription.eleve']);
+
+        if ($request->has('eleve_id')) {
+            $inscription = Inscription::where('id_eleve', $request->eleve_id)->latest('created_at')->first();
+            if (!$inscription) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+            $query->where('inscription_id', $inscription->id);
         }
-        $query = Notes::where('inscription_id', $inscription->id);
 
         if ($request->has('periode')) {
             $query->where('periode', $request->periode);
         }
 
-        $notes = $query->with('matiere')->get();
+        $notes = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'success' => true,
@@ -84,24 +88,11 @@ class NotesController extends Controller
                 ], 404);
             }
 
-            if ($matiere->classe_id !== null) {
-                if ((int) $matiere->classe_id !== (int) $inscription->id_classe) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'La matiere selectionnee n appartient pas a la classe de cette inscription',
-                    ], 422);
-                }
-            } else {
-                // Matière globale : vérifier le cycle et le niveau_classe
-                $classeInscription = $inscription->classe;
-                $niveauInscription = $classeInscription->niveau;
-                
-                if ($matiere->cycle !== $niveauInscription->cycle || $matiere->niveau_classe !== $niveauInscription->nom_niveau) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Cette matiere globale ne correspond pas au cycle/niveau de l eleve',
-                    ], 422);
-                }
+            if ($matiere->classe_id !== null && (int) $matiere->classe_id !== (int) $inscription->id_classe) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La matiere selectionnee n appartient pas a la classe de cette inscription',
+                ], 422);
             }
 
             $noteData = $request->only([

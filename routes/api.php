@@ -233,7 +233,7 @@ Route::middleware('auth:sanctum')->group(function () {
      Route::middleware('role:admin,caissier')->group(function () {
 
         // ─── MATIÈRES ─────────────────────────────────────────────────────────
-        Route::prefix('matieres')->group(function () {
+             Route::prefix('matieres')->group(function () {
             Route::get('/', [MatieresController::class, 'index']);
             Route::post('/', [MatieresController::class, 'store']);
             Route::post('/multiple', [MatieresController::class, 'storeMultiple']);

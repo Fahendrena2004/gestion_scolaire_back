@@ -19,28 +19,14 @@ class MatieresController extends Controller
         }
 
         if ($request->filled('niveau_id')) {
-            $query->where(function($q) use ($request) {
-                $q->whereHas('classe', function ($q2) use ($request) {
-                    $q2->where('niveau_id', $request->niveau_id);
-                })->orWhere(function($q2) use ($request) {
-                    $niveau = \App\Models\Inscription\Niveau::find($request->niveau_id);
-                    if ($niveau) {
-                        $q2->whereNull('classe_id')
-                           ->where('cycle', $niveau->cycle)
-                           ->where('niveau_classe', $niveau->nom_niveau);
-                    }
-                });
+            $query->whereHas('classe', function ($q) use ($request) {
+                $q->where('niveau_id', $request->niveau_id);
             });
         }
 
         if ($request->filled('cycle')) {
-            $query->where(function($q) use ($request) {
-                $q->whereHas('classe.niveau', function ($q2) use ($request) {
-                    $q2->where('cycle', $request->cycle);
-                })->orWhere(function($q2) use ($request) {
-                    $q2->whereNull('classe_id')
-                       ->where('cycle', $request->cycle);
-                });
+            $query->whereHas('classe.niveau', function ($q) use ($request) {
+                $q->where('cycle', $request->cycle);
             });
         }
 
@@ -93,10 +79,7 @@ class MatieresController extends Controller
             'matieres' => 'required|array|min:1',
             'matieres.*.nom' => 'required|string|max:100',
             'matieres.*.coefficient' => 'required|integer|min:1|max:10',
-            'matieres.*.classe_id' => 'nullable|exists:classes,id',
-            'matieres.*.cycle' => 'nullable|string|max:50',
-            'matieres.*.niveau_classe' => 'nullable|string|max:50',
-            'matieres.*.section' => 'nullable|string|max:50',
+            'matieres.*.classe_id' => 'required|exists:classes,id',
         ]);
 
         if ($validator->fails()) {
@@ -111,26 +94,20 @@ class MatieresController extends Controller
         if ($doublonsPayload->isNotEmpty()) {
             return response()->json([
                 'errors' => [
-                    'matieres' => ['Le payload contient des matieres en double.'],
+                    'matieres' => ['Le payload contient des matieres en double pour une meme classe.'],
                 ],
             ], 422);
         }
 
         foreach ($request->matieres as $index => $matiereData) {
-            $query = Matieres::where('nom', $matiereData['nom']);
-            
-            if (isset($matiereData['classe_id'])) {
-                $query->where('classe_id', $matiereData['classe_id']);
-            } else {
-                $query->whereNull('classe_id')
-                      ->where('cycle', $matiereData['cycle'] ?? null)
-                      ->where('niveau_classe', $matiereData['niveau_classe'] ?? null);
-            }
+            $existe = Matieres::where('classe_id', $matiereData['classe_id'])
+                ->where('nom', $matiereData['nom'])
+                ->exists();
 
-            if ($query->exists()) {
+            if ($existe) {
                 return response()->json([
                     'errors' => [
-                        "matieres.$index.nom" => ['Cette matiere existe deja avec ces parametres.'],
+                        "matieres.$index.nom" => ['Cette matiere existe deja pour la classe selectionnee.'],
                     ],
                 ], 422);
             }

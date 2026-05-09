@@ -9,6 +9,7 @@ use App\Models\Finance\Entree;
 use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\Inscription;
 use App\Models\Inscription\Paiement;
+use App\Models\Inscription\TypeFrais;
 use App\Models\Paiement\PaiementMensuel;
 use App\Models\Paiement\Recu;
 use App\Models\Paiement\ResumePaiement;
@@ -31,7 +32,7 @@ class ScolariteController extends Controller
         $montantMensuel = $this->getMontantMensuel($inscription);
         $moisAnnee = $this->genererMoisAnneeScolaire($inscription);
         
-        $moisPayes = PaiementMensuel::whereHas('resume', function ($query) use ($inscriptionId) {
+        $moisPayes = PaiementMensuel::with('paiement')->whereHas('resume', function ($query) use ($inscriptionId) {
             $query->where('inscription_id', $inscriptionId);
         })->get()->keyBy(fn ($item) => $item->annee . '-' . $item->mois);
 

@@ -57,7 +57,7 @@ class UtilisateurController extends Controller
             'prenom' => 'required|string|max:100',
             'telephone' => 'nullable|string|max:20',
             'email' => 'required|email|unique:utilisateurs,email',
-            'password' => 'required|string|min:6|max:255',
+            'password' => 'required|string|min:6|max:255|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'role' => ['required', Rule::in(['admin', 'caissier', 'professeur', 'secretaire'])],
             'status' => ['required', Rule::in(['actif', 'inactif'])],
         ]);
@@ -67,7 +67,7 @@ class UtilisateurController extends Controller
             'prenom' => $validator['prenom'],
             'telephone' => $validator['telephone'] ?? null,
             'email' => $validator['email'],
-            'password' => $validator['password'],
+            'password' => $validator['password'], // Le modèle Utilisateur gère le hachage
             'role' => $validator['role'],
             'status' => $validator['status'],
         ]);
@@ -104,7 +104,7 @@ class UtilisateurController extends Controller
             'prenom' => 'sometimes|string|max:100',
             'telephone' => 'nullable|string|max:20',
             'email' => ['sometimes', 'email', Rule::unique('utilisateurs')->ignore($utilisateur->id)],
-            'password' => 'sometimes|string|min:6|max:255',
+            'password' => 'sometimes|string|min:6|max:255|regex:/[a-zA-Z]/|regex:/[0-9]/',
             'role' => ['sometimes', Rule::in(['admin', 'caissier', 'professeur', 'secretaire'])],
             'status' => ['sometimes', Rule::in(['actif', 'inactif'])],
         ]);
@@ -112,9 +112,8 @@ class UtilisateurController extends Controller
         // Mettre à jour uniquement les champs fournis
         $utilisateur->fill($validator);
 
-        // Hasher le mot de passe seulement s'il est fourni
         if (isset($validator['password'])) {
-            $utilisateur->password = $validator['password'];
+            $utilisateur->password = $validator['password']; // Le modèle Utilisateur gère le hachage
         }
 
         $utilisateur->save();
@@ -171,5 +170,61 @@ class UtilisateurController extends Controller
             'success' => true,
             'data' => $stats,
         ]);
+    }
+
+    /**
+     * Envoyer un code de vérification par email
+     */
+    public function sendVerificationCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|unique:utilisateurs,email',
+        ]);
+
+        // Générer un code à 6 chiffres
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Sauvegarder dans password_reset_tokens (on peut réutiliser cette table pour les vérifs)
+        \DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $request->email],
+            [
+                'token' => \Hash::make($code),
+                'created_at' => now()
+            ]
+        );
+
+        // Envoyer la notification (on peut réutiliser ResetPasswordNotification ou en créer une spécifique)
+        // Pour l'instant on utilise ResetPasswordNotification avec un message générique
+        $notifiable = new \stdClass();
+        $notifiable->email = $request->email;
+        $notifiable->nom = "Utilisateur";
+        
+        \Notification::route('mail', $request->email)
+            ->notify(new \App\Notifications\EmailVerificationNotification($code));
+
+        return response()->json(['message' => 'Code de vérification envoyé.'], 200);
+    }
+
+    /**
+     * Vérifier le code PIN
+     */
+    public function verifyCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $record = \DB::table('password_reset_tokens')->where('email', $request->email)->first();
+
+        if (!$record || \Carbon\Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
+            return response()->json(['error' => 'Code expiré ou invalide.'], 400);
+        }
+
+        if (!\Hash::check($request->code, $record->token)) {
+            return response()->json(['error' => 'Code de vérification incorrect.'], 400);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Email vérifié avec succès.'], 200);
     }
 }

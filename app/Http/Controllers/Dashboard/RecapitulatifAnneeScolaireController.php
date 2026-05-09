@@ -196,10 +196,21 @@ class RecapitulatifAnneeScolaireController extends Controller
                 ];
             });
 
+            // Calculer la moyenne annuelle (moyenne des moyennes des trimestres)
+            $moyenneAnnuelle = $statsTrimestres->avg('moyenne_classe');
+            
+            // Taux de réussite global (basé sur la moyenne annuelle >= 10 ou moyenne des taux)
+            $tauxReussiteGlobal = $statsTrimestres->avg('taux_reussite');
+
             return [
                 'id' => $classe->id,
-                'nom_classe' => $classe->nom_classe,
+                'nom' => $classe->nom_classe,
                 'effectif' => $effectif,
+                'moyenne_annuelle' => round($moyenneAnnuelle, 2),
+                't1' => $statsTrimestres->where('trimestre', 'Trimestre 1')->first()['moyenne_classe'] ?? 0,
+                't2' => $statsTrimestres->where('trimestre', 'Trimestre 2')->first()['moyenne_classe'] ?? 0,
+                't3' => $statsTrimestres->where('trimestre', 'Trimestre 3')->first()['moyenne_classe'] ?? 0,
+                'taux_reussite' => round($tauxReussiteGlobal, 2),
                 'statistiques_trimestres' => $statsTrimestres
             ];
         });
@@ -211,7 +222,8 @@ class RecapitulatifAnneeScolaireController extends Controller
                     'id' => $annee->id,
                     'libelle' => $annee->libelle,
                 ],
-                'statistiques_par_classe' => $resultatsClasses
+                'classes' => $resultatsClasses,
+                'total_eleves' => $resultatsClasses->sum('effectif')
             ],
         ]);
     }
@@ -251,8 +263,8 @@ class RecapitulatifAnneeScolaireController extends Controller
                 return [
                     'mois' => $periode['mois'],
                     'annee' => $periode['annee'],
-                    'libelle' => Carbon::create($periode['annee'], $periode['mois'], 1)->translatedFormat('F Y'),
-                    'total_collecte' => round($collecte, 2),
+                    'name' => Carbon::create($periode['annee'], $periode['mois'], 1)->translatedFormat('M'),
+                    'amount' => round($collecte, 2),
                 ];
             })
             ->values();
@@ -264,16 +276,16 @@ class RecapitulatifAnneeScolaireController extends Controller
                     'id' => $annee->id,
                     'libelle' => $annee->libelle,
                 ],
-                'finance' => [
-                    'total_prix_entendu' => round($totalPrix, 2),
-                    'total_encaissement_paye' => round($totalCollecte, 2),
-                    'reste_paye' => round($restePaye, 2),
+                'summary' => [
+                    'attendu' => round($totalPrix, 2),
+                    'encaisse' => round($totalCollecte, 2),
+                    'restant' => round($restePaye, 2),
                     'taux_recouvrement' => $this->calculerTauxRecouvrement($totalCollecte, $totalPrix),
-                    'total_payer' => $totalPayer,
-                    'total_partiel' => $totalPartiel,
-                    'total_impayer' => $totalImpayer,
-                    'comparaison_mensuelle' => $evolutionMensuelle,
+                    'nb_payes' => $totalPayer,
+                    'nb_partiels' => $totalPartiel,
+                    'nb_impayes' => $totalImpayer,
                 ],
+                'evolution' => $evolutionMensuelle,
             ],
         ]);
     }
@@ -399,33 +411,56 @@ class RecapitulatifAnneeScolaireController extends Controller
     public function rechercherEtudiant(Request $request, $anneeId)
     {
         $annee = AnneeScolaire::findOrFail($anneeId);
-        $nom = $request->query('nom');
-        $matricule = $request->query('matricule');
+        $search = $request->query('search');
+        $cycle = $request->query('cycle');
+        $niveauId = $request->query('niveau_id');
+        $classeId = $request->query('classe_id');
 
-        $inscriptions = Inscription::with(['eleve', 'classe', 'resumePaiement'])
+        $inscriptions = Inscription::with(['eleve', 'classe.niveau', 'resumePaiement'])
             ->where('id_annee_scolaire', $annee->id)
-            ->whereHas('eleve', function ($query) use ($nom, $matricule) {
-                if ($nom) {
-                    $query->where(DB::raw("CONCAT(nom, ' ', prenom)"), 'like', "%{$nom}%");
-                }
-                if ($matricule) {
-                    $query->where('matricule', $matricule);
+            ->when($cycle, function ($query) use ($cycle) {
+                $query->whereHas('classe.niveau', function ($q) use ($cycle) {
+                    $q->where('cycle', $cycle);
+                });
+            })
+            ->when($niveauId, function ($query) use ($niveauId) {
+                $query->whereHas('classe', function ($q) use ($niveauId) {
+                    $q->where('niveau_id', $niveauId);
+                });
+            })
+            ->when($classeId, function ($query) use ($classeId) {
+                $query->where('id_classe', $classeId);
+            })
+            ->whereHas('eleve', function ($query) use ($search) {
+                if ($search) {
+                    $query->where(function($q) use ($search) {
+                        $q->where('nom', 'like', "%{$search}%")
+                          ->orWhere('prenom', 'like', "%{$search}%")
+                          ->orWhere('matricule', 'like', "%{$search}%");
+                    });
                 }
             })
             ->get()
             ->map(function ($ins) {
                 $moyenneGeneral = Bulletin::where('inscription_id', $ins->id)->avg('moyenne_eleve');
-                $statusPaye = ($ins->resumePaiement && $ins->resumePaiement->total_restant <= 0) ? 'Payé' : 'Impayé';
-                if ($ins->resumePaiement && $ins->resumePaiement->total_paye > 0 && $ins->resumePaiement->total_restant > 0) {
-                    $statusPaye = 'Partiel';
+                
+                $statusPaye = 'impaye';
+                if ($ins->resumePaiement) {
+                    if ($ins->resumePaiement->total_restant <= 0) {
+                        $statusPaye = 'paye';
+                    } elseif ($ins->resumePaiement->total_paye > 0) {
+                        $statusPaye = 'partiel';
+                    }
                 }
 
                 return [
-                    'nom' => $ins->eleve->nom . ' ' . $ins->eleve->prenom,
-                    'numeroImmatricule' => $ins->eleve->matricule,
-                    'classe' => $ins->classe->nom_classe,
-                    'status_paye' => $statusPaye,
-                    'moyenne_general' => round($moyenneGeneral, 2)
+                    'id' => $ins->eleve->id,
+                    'matricule' => $ins->eleve->matricule,
+                    'nom' => $ins->eleve->nom,
+                    'prenom' => $ins->eleve->prenom,
+                    'classe_nom' => $ins->classe->nom_classe,
+                    'statut_paiement' => $statusPaye,
+                    'moyenne' => round($moyenneGeneral, 2)
                 ];
             });
 

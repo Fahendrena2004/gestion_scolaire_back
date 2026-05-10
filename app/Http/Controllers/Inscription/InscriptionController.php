@@ -32,6 +32,14 @@ class InscriptionController extends Controller
             'resumePaiement',
         ]);
 
+        if ($request->has('inscription_id')) {
+            $query->where('id', $request->inscription_id);
+        }
+
+        if ($request->has('id')) {
+            $query->where('id', $request->id);
+        }
+
         if ($request->has('annee_scolaire_id')) {
             $query->where('id_annee_scolaire', $request->annee_scolaire_id);
         }
@@ -226,9 +234,17 @@ class InscriptionController extends Controller
 
             if ($montantVerse > 0) {
                 $this->enregistrerPaiementInitial($inscription, $resume, $montantVerse, $utilisateurId);
-            } else {
-                $this->mettreAJourResumePaiement($resume);
             }
+            $this->mettreAJourResumePaiement($resume);
+
+            // Notification pour l'administration
+            \App\Http\Controllers\NotificationController::push(
+                "Nouvelle Inscription",
+                "Nouvel étudiant inscrit : {$eleve->nom} {$eleve->prenom} (Matricule: {$eleve->matricule})",
+                'success',
+                null, // Tous les admins
+                "/caissier/paiement?student_id={$inscription->id}"
+            );
 
             DB::commit();
 

@@ -18,6 +18,9 @@ class CaissierController extends Controller
 {
     public function index()
     {
+        // Vérifier les retards de paiement
+        \App\Http\Controllers\NotificationController::checkLatePayments();
+
         $now         = Carbon::now();
         $anneeActive = $this->getAnneeActive();
 

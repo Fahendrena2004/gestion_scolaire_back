@@ -19,7 +19,9 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetpasswordController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\StaffPointageController;
 use App\Http\Controllers\Admin\UtilisateurController;
+use App\Http\Controllers\NotificationController;
 
 // SETUP
 use App\Http\Controllers\Setup\InstallController;
@@ -78,6 +80,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard caissier — vue globale financière
     Route::get('/caissier/dashboard', [CaissierController::class, 'index']);
 
+    // Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
+    });
+
     /*
     |--------------------------------------------------------------------------
     | ADMIN UNIQUEMENT
@@ -126,8 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/frais/type/{id}', [TypeFraisController::class, 'destroy'])->whereNumber('id'); // Alias
         });
 
-        // Staff admin
-        Route::prefix('admin/staffs')->group(function () {
+        // Gestion Staff
+        Route::prefix('staffs')->group(function () {
             Route::get('/', [StaffController::class, 'index']);
             Route::post('/', [StaffController::class, 'store']);
             Route::get('/statistiques', [StaffController::class, 'statistiques']);
@@ -223,8 +232,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
             Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
         });
+        });
 
-    });
 
 
     /*

@@ -28,21 +28,22 @@ class NiveauController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'cycle'=>'required|in:primaire,college,lycee',
-            'nom_niveau'=>'required|unique:niveaux,nom_niveau'
+            'cycle'      => 'required|in:primaire,college,lycee',
+            'nom_niveau' => 'required|unique:niveaux,nom_niveau',
+            'serie'      => 'nullable|in:S,L,OSE,Technique',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success'=>false,'errors'=>$validator->errors()],422);
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $niveau = Niveau::create($request->only(['cycle','nom_niveau']));
+        $niveau = Niveau::create($request->only(['cycle', 'nom_niveau', 'serie']));
 
         return response()->json([
-            'success'=>true,
-            'message'=>'Niveau créé',
-            'data'=>$niveau
-        ],201);
+            'success' => true,
+            'message' => 'Niveau créé',
+            'data'    => $niveau
+        ], 201);
     }
 
     public function show($id)
@@ -58,20 +59,21 @@ class NiveauController extends Controller
         $niveau = Niveau::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'cycle'=>'sometimes|in:primaire,college,lycee',
-            'nom_niveau'=>'sometimes|unique:niveaux,nom_niveau,'.$id
+            'cycle'      => 'sometimes|in:primaire,college,lycee',
+            'nom_niveau' => 'sometimes|unique:niveaux,nom_niveau,' . $id,
+            'serie'      => 'nullable|in:S,L,OSE,Technique',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success'=>false,'errors'=>$validator->errors()],422);
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $niveau->update($request->only(['cycle','nom_niveau']));
+        $niveau->update($request->only(['cycle', 'nom_niveau', 'serie']));
 
         return response()->json([
-            'success'=>true,
-            'message'=>'Niveau mis à jour',
-            'data'=>$niveau->refresh()
+            'success' => true,
+            'message' => 'Niveau mis à jour',
+            'data'    => $niveau->refresh()
         ]);
     }
 

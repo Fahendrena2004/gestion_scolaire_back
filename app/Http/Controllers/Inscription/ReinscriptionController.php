@@ -258,6 +258,15 @@ class ReinscriptionController extends Controller
                 'utilisateur_id' => Auth::id(),
             ]);
 
+            // Notification pour l'administration
+            \App\Http\Controllers\NotificationController::push(
+                "Réinscription",
+                "Réinscription effectuée : {$eleve->nom} {$eleve->prenom} (Classe: {$classeCible->nom_classe})",
+                'success',
+                null,
+                "/admin/etudiant/{$nouvelleInscription->id}"
+            );
+
             DB::commit();
 
             return response()->json([

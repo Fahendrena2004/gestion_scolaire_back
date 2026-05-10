@@ -266,6 +266,16 @@ class ScolariteController extends Controller
 
             $this->mettreAJourResume($resume);
 
+            // Notification de paiement
+            $eleveNom = "{$inscription->eleve->nom} {$inscription->eleve->prenom}";
+            \App\Http\Controllers\NotificationController::push(
+                "Paiement Scolarité",
+                "Paiement reçu — {$eleveNom} (" . number_format($totalMontantReellementPaye, 0, ',', ' ') . " Ar)",
+                'success',
+                null,
+                "/caissier/paiement?student_id={$inscription->id}"
+            );
+
             DB::commit();
 
             return response()->json([

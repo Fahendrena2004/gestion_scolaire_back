@@ -9,7 +9,8 @@ class Niveau extends Model
     protected $table='niveaux';
     protected $fillable = [
         'cycle',
-        'nom_niveau'
+        'nom_niveau',
+        'serie'
     ];
 
 

@@ -19,7 +19,9 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetpasswordController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\StaffPointageController;
 use App\Http\Controllers\Admin\UtilisateurController;
+use App\Http\Controllers\NotificationController;
 
 // SETUP
 use App\Http\Controllers\Setup\InstallController;
@@ -78,6 +80,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard caissier — vue globale financière
     Route::get('/caissier/dashboard', [CaissierController::class, 'index']);
 
+    // Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
+    });
+
     /*
     |--------------------------------------------------------------------------
     | ADMIN UNIQUEMENT
@@ -102,20 +111,22 @@ Route::middleware('auth:sanctum')->group(function () {
             // Années scolaires (CRUD admin)
             Route::get('/annees-scolaires', [AnneeScolaireController::class, 'index']);
             Route::get('/annee-scolaire', [AnneeScolaireController::class, 'index']); // Alias
+            
             Route::get('/annees-scolaires/active', [AnneeScolaireController::class, 'getActive']);
             Route::get('/annee-scolaire/active', [AnneeScolaireController::class, 'getActive']); // Alias
+            
             Route::post('/annees-scolaires', [AnneeScolaireController::class, 'store']);
             Route::post('/annee-scolaire', [AnneeScolaireController::class, 'store']); // Alias
+            
             Route::get('/annees-scolaires/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id');
             Route::get('/annee-scolaire/{id}', [AnneeScolaireController::class, 'show'])->whereNumber('id'); // Alias
+            
             Route::put('/annees-scolaires/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id');
             Route::put('/annee-scolaire/{id}', [AnneeScolaireController::class, 'update'])->whereNumber('id'); // Alias
             Route::delete('/annees-scolaires/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id');
             Route::delete('/annee-scolaire/{id}', [AnneeScolaireController::class, 'destroy'])->whereNumber('id'); // Alias
 
-            // Types de frais (CRUD admin)
-            Route::get('/frais/types', [TypeFraisController::class, 'index']);
-            Route::get('/frais/type', [TypeFraisController::class, 'index']); // Alias
+            // Types de frais (CRUD admin - MODIFICATION UNIQUEMENT)
             Route::post('/frais/types', [TypeFraisController::class, 'store']);
             Route::post('/frais/type', [TypeFraisController::class, 'store']); // Alias
             Route::put('/frais/types/{id}', [TypeFraisController::class, 'update'])->whereNumber('id');
@@ -124,8 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/frais/type/{id}', [TypeFraisController::class, 'destroy'])->whereNumber('id'); // Alias
         });
 
-        // Staff admin
-        Route::prefix('admin/staffs')->group(function () {
+        // Gestion Staff
+        Route::prefix('staffs')->group(function () {
             Route::get('/', [StaffController::class, 'index']);
             Route::post('/', [StaffController::class, 'store']);
             Route::get('/statistiques', [StaffController::class, 'statistiques']);
@@ -221,8 +232,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [ReinscriptionController::class, 'destroy']);
             Route::put('/{id}/paiement', [ReinscriptionController::class, 'updatePaiement']);
         });
+        });
 
-    });
 
 
     /*
@@ -230,8 +241,8 @@ Route::middleware('auth:sanctum')->group(function () {
     | GESTION DES NOTES (ADMIN ET CAISSIER)
     |--------------------------------------------------------------------------
     */
-     Route::middleware('role:admin,caissier')->group(function () {
-
+    Route::middleware('role:admin,caissier')->group(function () {
+        
         // ─── MATIÈRES ─────────────────────────────────────────────────────────
              Route::prefix('matieres')->group(function () {
             Route::get('/', [MatieresController::class, 'index']);

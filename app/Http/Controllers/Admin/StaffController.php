@@ -20,17 +20,17 @@ class StaffController extends Controller
         $query = Staff::with(['utilisateur', 'infosDynamiques']);
 
         // Filtre par fonction
-        if ($request->has('fonction')) {
+        if ($request->filled('fonction')) {
             $query->where('fonction', 'like', '%' . $request->fonction . '%');
         }
 
         // Filtre par sexe
-        if ($request->has('sexe')) {
+        if ($request->filled('sexe')) {
             $query->where('sexe', '=', $request->sexe);
         }
 
         // Recherche
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('nom', 'like', "%{$search}%")

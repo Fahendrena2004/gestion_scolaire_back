@@ -19,6 +19,9 @@ class AdminController extends Controller
      */
     public function getStats()
     {
+        // Vérifier les retards de paiement
+        \App\Http\Controllers\NotificationController::checkLatePayments();
+
         // 0. Année scolaire en cours
         $currentYear = AnneeScolaire::where('statut', 'en_cours')->first();
         $yearId = $currentYear ? $currentYear->id : null;

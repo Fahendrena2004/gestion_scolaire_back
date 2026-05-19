@@ -34,7 +34,7 @@ class StaffPointageController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'staff_id' => 'required|exists:staff,id',
+            'staff_id' => 'required|exists:staffs,id',
             'date_pointage' => 'required|date',
             'heure_entree' => 'nullable',
             'statut' => 'required|in:present,retard,absent',

@@ -135,17 +135,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/frais/type/{id}', [TypeFraisController::class, 'destroy'])->whereNumber('id'); // Alias
         });
 
-        // Gestion Staff
-        Route::prefix('staffs')->group(function () {
-            Route::get('/', [StaffController::class, 'index']);
-            Route::post('/', [StaffController::class, 'store']);
-            Route::get('/statistiques', [StaffController::class, 'statistiques']);
-            Route::get('/export', [StaffController::class, 'export']);
-            Route::get('/{id}', [StaffController::class, 'show']);
-            Route::put('/{id}', [StaffController::class, 'update']);
-            Route::delete('/{id}', [StaffController::class, 'destroy']);
-        });
-
         // Dashboard Admin
         Route::get('admin/dashboard/stats', [AdminController::class, 'getStats']);
     });
@@ -156,6 +145,26 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,caissier')->group(function () {
+
+        // ─── GESTION STAFF (Shared) ──────────────────────────────────────────
+        Route::prefix('admin/staffs')->group(function () {
+            Route::get('/', [StaffController::class, 'index']);
+            Route::get('/{id}', [StaffController::class, 'show'])->whereNumber('id');
+            
+            // Pointage (Accessible to Caissier for daily tracking)
+            Route::get('/pointage', [StaffPointageController::class, 'index']);
+            Route::post('/pointage', [StaffPointageController::class, 'store']);
+            Route::get('/{id}/pointage-history', [StaffPointageController::class, 'history']);
+
+            // Operations reserved for ADMIN
+            Route::middleware('role:admin')->group(function () {
+                Route::post('/', [StaffController::class, 'store']);
+                Route::put('/{id}', [StaffController::class, 'update']);
+                Route::delete('/{id}', [StaffController::class, 'destroy']);
+                Route::get('/statistiques', [StaffController::class, 'statistiques']);
+                Route::get('/export', [StaffController::class, 'export']);
+            });
+        });
 
         // Dashboard récapitulatif par année
         Route::prefix('dashboard/recapitulatif')->group(function () {

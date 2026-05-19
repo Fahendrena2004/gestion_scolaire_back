@@ -49,8 +49,13 @@ class InscriptionController extends Controller
         }
 
         if ($request->has('niveau_id')) {
-            $query->whereHas('classe', function ($q) use ($request) {
-                $q->where('niveau_id', $request->niveau_id);
+            $query->whereHas('classe.niveau', function ($q) use ($request) {
+                $val = $request->niveau_id;
+                if (is_numeric($val)) {
+                    $q->where('id', $val);
+                } else {
+                    $q->where('nom_niveau', $val);
+                }
             });
         }
 
@@ -85,7 +90,7 @@ class InscriptionController extends Controller
 
         $validator = Validator::make($payload, [
             'nom'                    => 'required|string|max:100',
-            'prenom'                 => 'required|string|max:100',
+            'prenom'                 => 'nullable|string|max:100',
             'date_naissance'         => 'required|date|before:today',
             'lieu_naissance'         => 'required|string|max:150',
             'sexe'                   => 'required|in:M,F',
@@ -318,7 +323,7 @@ class InscriptionController extends Controller
 
         $validator = Validator::make($request->all(), [
             'nom'                   => 'sometimes|required|string|max:100',
-            'prenom'                => 'sometimes|required|string|max:100',
+            'prenom'                => 'sometimes|nullable|string|max:100',
             'date_naissance'        => 'sometimes|required|date|before:today',
             'lieu_naissance'        => 'sometimes|required|string|max:150',
             'sexe'                  => 'sometimes|required|in:M,F',

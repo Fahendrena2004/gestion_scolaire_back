@@ -105,6 +105,10 @@ class NotesController extends Controller
             ]);
             $noteData['inscription_id'] = $inscription->id;
 
+            if (empty($noteData['appreciation'])) {
+                $noteData['appreciation'] = $this->calculerAppreciation($noteData['valeur']);
+            }
+
             $note = Notes::create($noteData);
             $noteWithMatiere = Notes::with('matiere')->find($note->id);
             
@@ -162,7 +166,11 @@ class NotesController extends Controller
         }
 
         try {
-            Notes::where('id', $id)->update($request->only(['valeur', 'date', 'appreciation']));
+            $updateData = $request->only(['valeur', 'date', 'appreciation']);
+            if (isset($updateData['valeur']) && empty($updateData['appreciation'])) {
+                $updateData['appreciation'] = $this->calculerAppreciation($updateData['valeur']);
+            }
+            Notes::where('id', $id)->update($updateData);
             $updatedNote = Notes::with('matiere')->find($id);
 
             return response()->json([
@@ -176,6 +184,24 @@ class NotesController extends Controller
                 'message' => 'Erreur lors de la modification',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    private function calculerAppreciation($valeur)
+    {
+        $v = (float)$valeur;
+        if ($v >= 0 && $v <= 5) {
+            return 'balme';
+        } elseif ($v >= 6 && $v <= 9) {
+            return 'Insuffisant';
+        } elseif ($v >= 10 && $v <= 12) {
+            return 'passable';
+        } elseif ($v >= 12 && $v <= 14) {
+            return 'Assez-bien';
+        } elseif ($v >= 15 && $v <= 16) {
+            return 'bien';
+        } else {
+            return 'tres-bien';
         }
     }
 

@@ -17,7 +17,7 @@ class InscriptionRequest extends FormRequest
     {
         return [
             'nom' => 'required|string|max:100',
-            'prenom' => 'required|string|max:100',
+            'prenom' => 'nullable|string|max:100',
             'date_naissance' => 'required|date|before:today',
             'lieu_naissance' => 'required|string|max:150',
             'sexe' => 'required|in:M,F',

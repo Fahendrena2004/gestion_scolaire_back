@@ -15,6 +15,11 @@ class MatieresSeeder extends Seeder
      */
     public function run(): void
     {
+        // Truncate to prevent unique constraint failures
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('matieres')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
         // On récupère toutes les classes avec leur niveau associé
         $classes = Classe::with('niveau')->get();
 
@@ -44,7 +49,7 @@ class MatieresSeeder extends Seeder
                     ['nom' => 'Éducation Physique et Sportive', 'coefficient' => 1],
                 ];
             } elseif ($cycle === 'lycee') {
-                if (in_array($niveauNom, ['Première', 'Terminale'])) {
+                if (in_array($niveauNom, ['Premiere', 'Première', 'Terminale'])) {
                     // Les divisions A et B sont souvent Littéraires, C et D Scientifiques
                     if (in_array($division, ['A', 'B'])) {
                         // Profil Littéraire

@@ -242,20 +242,38 @@ class BulletinService
 
     private function genererAppreciation($moyenne, $rang)
     {
-        if ($moyenne >= 16) return "Excellent travail ! Félicitations !";
-        if ($moyenne >= 14) return "Très bon travail, continuez !";
-        if ($moyenne >= 12) return "Bon travail, pouvez mieux faire.";
-        if ($moyenne >= 10) return "Travail acceptable, des efforts sont nécessaires.";
-        return "Résultats insuffisants, travaillez davantage.";
+        $v = (float)$moyenne;
+        if ($v >= 0 && $v <= 5) {
+            return 'blame';
+        } elseif ($v >= 6 && $v <= 9) {
+            return 'Insuffisant';
+        } elseif ($v >= 10 && $v <= 12) {
+            return 'passable';
+        } elseif ($v >= 12 && $v <= 14) {
+            return 'Assez-bien';
+        } elseif ($v >= 15 && $v <= 16) {
+            return 'bien';
+        } else {
+            return 'tres-bien';
+        }
     }
 
     private function genererAppreciationMatiere($moyenne)
     {
-        if ($moyenne >= 16) return "Excellent !";
-        if ($moyenne >= 14) return "Très bien !";
-        if ($moyenne >= 12) return "Bien.";
-        if ($moyenne >= 10) return "Passable.";
-        return "Insuffisant.";
+        $v = (float)$moyenne;
+        if ($v >= 0 && $v <= 5) {
+            return 'balme';
+        } elseif ($v >= 6 && $v <= 9) {
+            return 'Insuffisant';
+        } elseif ($v >= 10 && $v <= 12) {
+            return 'passable';
+        } elseif ($v >= 12 && $v <= 14) {
+            return 'Assez-bien';
+        } elseif ($v >= 15 && $v <= 16) {
+            return 'bien';
+        } else {
+            return 'tres-bien';
+        }
     }
 
     public function genererBulletinsClasse($classeId, $periode, $anneeScolaireId)

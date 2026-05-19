@@ -44,7 +44,15 @@ class RecapitulatifAnneeScolaireController extends Controller
         $classes = Classe::query()
             ->with('niveau')
             ->where('anneeScolaire_id', $annee->id)
-            ->when($niveauId, fn ($query) => $query->where('niveau_id', $niveauId))
+            ->when($niveauId, function ($query) use ($niveauId) {
+                $query->whereHas('niveau', function ($q) use ($niveauId) {
+                    if (is_numeric($niveauId)) {
+                        $q->where('id', $niveauId);
+                    } else {
+                        $q->where('nom_niveau', $niveauId);
+                    }
+                });
+            })
             ->orderBy('nom_classe')
             ->get()
             ->map(function (Classe $classe) use ($annee) {
@@ -167,7 +175,15 @@ class RecapitulatifAnneeScolaireController extends Controller
         $classeId = $request->query('classe_id');
 
         $classesQuery = Classe::where('anneeScolaire_id', $annee->id)
-            ->when($niveauId, fn($q) => $q->where('niveau_id', $niveauId))
+            ->when($niveauId, function ($query) use ($niveauId) {
+                $query->whereHas('niveau', function ($q) use ($niveauId) {
+                    if (is_numeric($niveauId)) {
+                        $q->where('id', $niveauId);
+                    } else {
+                        $q->where('nom_niveau', $niveauId);
+                    }
+                });
+            })
             ->when($classeId, fn($q) => $q->where('id', $classeId));
 
         $resultatsClasses = $classesQuery->get()->map(function ($classe) use ($annee) {
@@ -424,8 +440,12 @@ class RecapitulatifAnneeScolaireController extends Controller
                 });
             })
             ->when($niveauId, function ($query) use ($niveauId) {
-                $query->whereHas('classe', function ($q) use ($niveauId) {
-                    $q->where('niveau_id', $niveauId);
+                $query->whereHas('classe.niveau', function ($q) use ($niveauId) {
+                    if (is_numeric($niveauId)) {
+                        $q->where('id', $niveauId);
+                    } else {
+                        $q->where('nom_niveau', $niveauId);
+                    }
                 });
             })
             ->when($classeId, function ($query) use ($classeId) {

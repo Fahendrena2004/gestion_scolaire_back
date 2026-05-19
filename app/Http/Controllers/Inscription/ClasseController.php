@@ -33,6 +33,38 @@ class ClasseController extends Controller
         ]);
     }
 
+    /**
+     * Fetch classes by cycle + nom_niveau (resilient to seeder truncation).
+     * GET /classes/par-nom?cycle=primaire&nom_niveau=CP
+     */
+    public function getByNomNiveau(Request $request)
+    {
+        $cycle     = $request->query('cycle', '');
+        $nomNiveau = $request->query('nom_niveau', '');
+        $serie     = $request->query('serie', null);
+
+        $query = Classe::whereHas('niveau', function ($q) use ($cycle, $nomNiveau, $serie) {
+            $q->where('cycle', $cycle)->where('nom_niveau', $nomNiveau);
+            if ($serie) {
+                $q->where('serie', $serie);
+            }
+        })->with(['niveau', 'anneeScolaire']);
+
+        $classes = $query->get()->map(fn ($c) => $this->avecEffectifDisponible($c));
+
+        // Also return the correct niveau_id for the matched niveau
+        $niveau = \App\Models\Inscription\Niveau::where('cycle', $cycle)
+            ->where('nom_niveau', $nomNiveau)
+            ->when($serie, fn ($q) => $q->where('serie', $serie))
+            ->first();
+
+        return response()->json([
+            'success'   => true,
+            'niveau_id' => $niveau?->id,
+            'data'      => $classes,
+        ]);
+    }
+
     public function getByCycle($cycle)
     {
         $classes = Classe::whereHas('niveau', fn ($q) => $q->where('cycle', $cycle))

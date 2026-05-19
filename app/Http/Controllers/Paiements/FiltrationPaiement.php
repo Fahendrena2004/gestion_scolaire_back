@@ -26,8 +26,13 @@ class FiltrationPaiement extends Controller
         }
 
         if ($request->filled('niveau_id')) {
-            $query->whereHas('classe', function($q) use ($request) {
-                $q->where('niveau_id', $request->niveau_id);
+            $query->whereHas('classe.niveau', function($q) use ($request) {
+                $val = $request->niveau_id;
+                if (is_numeric($val)) {
+                    $q->where('id', $val);
+                } else {
+                    $q->where('nom_niveau', $val);
+                }
             });
         }
 

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('eleves', function (Blueprint $table) {
             $table->id();
             $table->string('nom',100);
-            $table->string('prenom',100);
+            $table->string('prenom',100)->nullable();
             $table->date('date_naissance');
             $table->string('lieu_naissance',150);
             $table->enum('sexe', ['M', 'F']);

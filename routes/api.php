@@ -204,6 +204,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Classes
             Route::get('/classes', [ClasseController::class, 'index']);
+            Route::get('/classes/par-nom', [ClasseController::class, 'getByNomNiveau']);
             Route::get('/classes/niveau/{niveauId}', [ClasseController::class, 'getByNiveau']);
             Route::get('/classes/niveau/{niveauId}/disponibles', [ClasseController::class, 'getDisponibles']);
             Route::get('/classes/cycle/{cycle}', [ClasseController::class, 'getByCycle']);

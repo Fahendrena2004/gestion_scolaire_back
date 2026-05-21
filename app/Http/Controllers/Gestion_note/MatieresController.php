@@ -12,21 +12,33 @@ class MatieresController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Matieres::with('classe.niveau');
+        $query = Matieres::with(['classe.niveau', 'niveau']);
 
         if ($request->filled('classe_id')) {
             $query->where('classe_id', $request->classe_id);
         }
 
         if ($request->filled('niveau_id')) {
-            $query->whereHas('classe', function ($q) use ($request) {
-                $q->where('niveau_id', $request->niveau_id);
+            $query->where(function ($q) use ($request) {
+                $q->where('niveau_id', $request->niveau_id)
+                  ->orWhereHas('classe', function ($sub) use ($request) {
+                      $sub->where('niveau_id', $request->niveau_id);
+                  });
             });
         }
 
         if ($request->filled('cycle')) {
-            $query->whereHas('classe.niveau', function ($q) use ($request) {
-                $q->where('cycle', $request->cycle);
+            $cycle = strtolower(trim($request->cycle));
+            if ($cycle === 'collège') $cycle = 'college';
+            if ($cycle === 'lycée') $cycle = 'lycee';
+            
+            $query->where(function ($q) use ($cycle) {
+                $q->whereHas('niveau', function ($sub) use ($cycle) {
+                    $sub->where('cycle', $cycle);
+                })
+                ->orWhereHas('classe.niveau', function ($sub) use ($cycle) {
+                    $sub->where('cycle', $cycle);
+                });
             });
         }
 
@@ -64,12 +76,35 @@ class MatieresController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $matiere = Matieres::create($request->only(['nom', 'coefficient', 'classe_id', 'cycle', 'niveau_classe', 'section']));
+        $data = $request->only(['nom', 'coefficient', 'classe_id', 'section']);
+        
+        $niveauId = null;
+        if ($request->filled('classe_id')) {
+            $classe = \App\Models\Inscription\Classe::find($request->classe_id);
+            if ($classe) {
+                $niveauId = $classe->niveau_id;
+            }
+        } elseif ($request->filled('cycle') && $request->filled('niveau_classe')) {
+            $cycle = strtolower(trim($request->cycle));
+            if ($cycle === 'collège') $cycle = 'college';
+            if ($cycle === 'lycée') $cycle = 'lycee';
+            
+            $niveau = \App\Models\Inscription\Niveau::where('cycle', $cycle)
+                ->where('nom_niveau', $request->niveau_classe)
+                ->first();
+            if ($niveau) {
+                $niveauId = $niveau->id;
+            }
+        }
+        
+        $data['niveau_id'] = $niveauId;
+
+        $matiere = Matieres::create($data);
 
         return response()->json([
             'success' => true,
             'message' => 'Matiere ajoutee avec succes',
-            'data' => $matiere->load('classe.niveau'),
+            'data' => $matiere->load(['classe.niveau', 'niveau']),
         ], 201);
     }
 
@@ -116,7 +151,12 @@ class MatieresController extends Controller
         $created = [];
 
         foreach ($request->matieres as $matiereData) {
-            $created[] = Matieres::create($matiereData)->load('classe.niveau');
+            $classe = \App\Models\Inscription\Classe::find($matiereData['classe_id']);
+            if ($classe) {
+                $matiereData['niveau_id'] = $classe->niveau_id;
+            }
+            $insertData = collect($matiereData)->only(['nom', 'coefficient', 'classe_id', 'niveau_id', 'section'])->toArray();
+            $created[] = Matieres::create($insertData)->load(['classe.niveau', 'niveau']);
         }
 
         return response()->json([
@@ -128,7 +168,7 @@ class MatieresController extends Controller
 
     public function show($id)
     {
-        $matiere = Matieres::with('classe.niveau')->find($id);
+        $matiere = Matieres::with(['classe.niveau', 'niveau'])->find($id);
 
         if (!$matiere) {
             return response()->json([
@@ -170,12 +210,43 @@ class MatieresController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $matiere->update($request->only(['nom', 'coefficient', 'classe_id', 'cycle', 'niveau_classe', 'section']));
+        $data = $request->only(['nom', 'coefficient', 'classe_id', 'section']);
+
+        if ($request->has('classe_id') || $request->has('cycle') || $request->has('niveau_classe')) {
+            $niveauId = $matiere->niveau_id;
+            
+            $effectiveClasseId = $request->has('classe_id') ? $request->classe_id : $matiere->classe_id;
+            if ($effectiveClasseId) {
+                $classe = \App\Models\Inscription\Classe::find($effectiveClasseId);
+                if ($classe) {
+                    $niveauId = $classe->niveau_id;
+                }
+            } else {
+                $cycle = $request->has('cycle') ? $request->cycle : null;
+                $niveauClasse = $request->has('niveau_classe') ? $request->niveau_classe : null;
+                
+                if ($cycle && $niveauClasse) {
+                    $cycleNormalized = strtolower(trim($cycle));
+                    if ($cycleNormalized === 'collège') $cycleNormalized = 'college';
+                    if ($cycleNormalized === 'lycée') $cycleNormalized = 'lycee';
+                    
+                    $niveau = \App\Models\Inscription\Niveau::where('cycle', $cycleNormalized)
+                        ->where('nom_niveau', $niveauClasse)
+                        ->first();
+                    if ($niveau) {
+                        $niveauId = $niveau->id;
+                    }
+                }
+            }
+            $data['niveau_id'] = $niveauId;
+        }
+
+        $matiere->update($data);
 
         return response()->json([
             'success' => true,
             'message' => 'Matiere modifiee avec succes',
-            'data' => $matiere->load('classe.niveau'),
+            'data' => $matiere->load(['classe.niveau', 'niveau']),
         ]);
     }
 

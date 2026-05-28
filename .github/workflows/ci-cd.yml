@@ -86,13 +86,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase repository name
+        run: echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
-            ghcr.io/${{ github.repository }}/backend:latest
-            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/backend:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/backend:buildcache,mode=max
+            ghcr.io/${{ env.REPO_LOWER }}/backend:latest
+            ghcr.io/${{ env.REPO_LOWER }}/backend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}/backend:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ env.REPO_LOWER }}/backend:buildcache,mode=max
+

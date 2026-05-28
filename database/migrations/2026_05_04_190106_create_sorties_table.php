@@ -17,7 +17,7 @@ return new class extends Migration
             $table->decimal('montant', 15, 2);
             $table->date('date_sortie');
             $table->foreignId('type_sortie_id')->constrained('categories_sortie');
-            $table->foreignId('staff_id')->nullable()->constrained('staff')->onDelete('set null');
+            $table->foreignId('staff_id')->nullable()->constrained('staffs')->onDelete('set null');
             $table->enum('statut', ['brouillon', 'valide', 'paye'])->default('brouillon');
             $table->foreignId('annee_scolaire_id')->constrained('annee_scolaires');
             $table->string('description')->nullable();

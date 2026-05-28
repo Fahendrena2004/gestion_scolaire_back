@@ -44,7 +44,7 @@ jobs:
       - name: Cache Composer dependencies
         uses: actions/cache@v3
         with:
-          path: vendor
+          path: backend_gsco/vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('backend_gsco/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 

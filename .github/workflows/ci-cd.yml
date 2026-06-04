@@ -1,4 +1,4 @@
-name: CI/CD - Tests & Déploiement
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
 
 jobs:
 
-  # JOB 1 : TESTER LE CODE
+  # JOB 1 : TESTS
   tests:
-    name: Job 1 - Tests
+    name: Job 1 - Execute Tests
     runs-on: ubuntu-latest
     
     services:
@@ -17,67 +17,84 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: laravel_test
+          MYSQL_DATABASE: test_db
         ports:
           - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Step 1.1 - Checkout code
+        uses: actions/checkout@v4
       
-      - name: Installer PHP
+      - name: Step 1.2 - Setup PHP 8.2
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.2'
       
-      - name: Installer Composer
+      - name: Step 1.3 - Install Composer dependencies
         run: composer install --no-interaction
       
-      - name: Configurer .env
+      - name: Step 1.4 - Create .env file
         run: |
           cp .env.example .env
-          php artisan key:generate
+          echo "APP_KEY=base64:1234567890123456789012345678901234567890=" >> .env
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=test_db" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=root" >> .env
       
-      - name: Lancer les migrations
+      - name: Step 1.5 - Run migrations
         run: php artisan migrate --force
       
-      - name: Lancer les tests
+      - name: Step 1.6 - Run tests
         run: php artisan test
 
-  # JOB 2 : PREPARER LE DEPLOIEMENT
+  # JOB 2 : PREPARATION
   prepare:
-    name: Job 2 - Préparation
+    name: Job 2 - Prepare Deployment
     runs-on: ubuntu-latest
     needs: tests
+    if: success()
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Step 2.1 - Checkout code
+        uses: actions/checkout@v4
       
-      - name: Installer les dépendances
-        run: composer install --no-dev --optimize-autoloader
+      - name: Step 2.2 - Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
       
-      - name: Créer l'archive
-        run: |
-          zip -r deploy.zip . -x "*.git*" "*tests*" "*.env*"
+      - name: Step 2.3 - Install production dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
       
-      - name: Sauvegarder l'archive
+      - name: Step 2.4 - Remove .env file
+        run: rm -f .env .env.example
+      
+      - name: Step 2.5 - Create deployment archive
+        run: zip -r deploy.zip . -x "*.git*" "*tests*" ".github/*" "phpunit.xml" ".env*"
+      
+      - name: Step 2.6 - Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: application
           path: deploy.zip
 
-  # JOB 3 : DEPLOYER SUR DIRECTADMIN
+  # JOB 3 : DEPLOIEMENT
   deploy:
-    name: Job 3 - Déploiement
+    name: Job 3 - Deploy to DirectAdmin
     runs-on: ubuntu-latest
     needs: prepare
     
     steps:
-      - name: Récupérer l'archive
+      - name: Step 3.1 - Download archive
         uses: actions/download-artifact@v4
         with:
           name: application
       
-      - name: Envoyer vers le serveur
+      - name: Step 3.2 - Send files to server
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.HOST }}
@@ -87,7 +104,7 @@ jobs:
           source: "deploy.zip"
           target: "/home/${{ secrets.USERNAME }}/domains/api.edunova.mg/"
       
-      - name: Installer sur le serveur
+      - name: Step 3.3 - Execute deployment commands
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.HOST }}
@@ -97,21 +114,42 @@ jobs:
           script: |
             cd /home/${{ secrets.USERNAME }}/domains/api.edunova.mg/
             
-            # Sauvegarde
-            mv public_html public_html_old 2>/dev/null
+            echo "START DEPLOYMENT"
             
-            # Décompresser
+            if [ -f "public_html/.env" ]; then
+              cp public_html/.env .env_backup
+              echo "ENV BACKUP CREATED"
+            fi
+            
+            rm -rf public_html_old
+            mv public_html public_html_old 2>/dev/null || true
+            
+            mkdir -p public_html
             unzip -q deploy.zip -d public_html
             
-            # Nettoyer
+            if [ -f ".env_backup" ]; then
+              mv .env_backup public_html/.env
+              echo "ENV RESTORED"
+            fi
+            
             rm -f deploy.zip
             
-            # Aller dans le dossier
             cd public_html
             
-            # Commands artisan
-            php artisan config:cache
-            php artisan migrate --force
-            php artisan storage:link
+            if ! grep -q "APP_KEY=" .env || grep -q "APP_KEY=$" .env; then
+              php artisan key:generate --force
+              echo "APP KEY GENERATED"
+            fi
             
-            echo "✅ Déploiement terminé !"
+            echo "DATABASE: $(grep DB_DATABASE .env | cut -d '=' -f2)"
+            
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            php artisan migrate --force
+            
+            chmod -R 775 storage bootstrap/cache
+            
+            echo "DEPLOYMENT COMPLETED"

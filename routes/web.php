@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\ResetpasswordController;
 
 Route::get('/', function () {
     return view('welcome');
+
 });
 
 Route::get('password/reset', [ResetpasswordController::class, 'showResetForm'])->name('password.reset');

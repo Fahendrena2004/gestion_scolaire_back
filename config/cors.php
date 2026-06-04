@@ -24,6 +24,7 @@ return [
         'http://127.0.0.1:3000',
         'https://edunova-rg3rgb655-christianfahendrena-1404s-projects.vercel.app',
         'https://edunovam.vercel.app',
+        'https://edunova-pied.vercel.app',
         'https://edunova.mg',
         'https://api.edunova.mg'
     ],

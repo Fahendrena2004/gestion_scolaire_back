@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'https://edunova-rg3rgb655-christianfahendrena-1404s-projects.vercel.app',
+        'https://api.edunova.mg'
+    ],
 
     'allowed_origins_patterns' => [],
 

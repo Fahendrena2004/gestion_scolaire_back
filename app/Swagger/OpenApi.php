@@ -10,7 +10,7 @@ use OpenApi\Attributes as OA;
     description: 'Documentation API Laravel avec authentification Sanctum'
 )]
 #[OA\Server(
-    url: 'http://localhost:8000',
+    url: 'http://api.edunova.mg',
     description: 'Serveur local'
 )]
 #[OA\SecurityScheme(

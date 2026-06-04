@@ -26,13 +26,13 @@ jobs:
       - name: Step 1.1 - Checkout code
         uses: actions/checkout@v4
 
-      - name: Step 1.2 - Setup PHP 8.5
+      - name: Step 1.2 - Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.3'
 
       - name: Step 1.3 - Install Composer dependencies
-        run: composer install --no-interaction --ignore-platform-reqs
+        run: composer install --no-interaction
 
       - name: Step 1.4 - Create .env file
         run: |
@@ -62,13 +62,13 @@ jobs:
       - name: Step 2.1 - Checkout code
         uses: actions/checkout@v4
 
-      - name: Step 2.2 - Setup PHP 8.5
+      - name: Step 2.2 - Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.3'
 
       - name: Step 2.3 - Install production dependencies
-        run: composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+        run: composer install --no-dev --optimize-autoloader --no-interaction
 
       - name: Step 2.4 - Remove .env file
         run: rm -f .env .env.example
@@ -94,25 +94,38 @@ jobs:
         with:
           name: application
 
-      - name: Step 3.2 - Send files to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          port: ${{ secrets.PORT }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          source: "deploy.zip"
-          target: "/home/${{ secrets.USERNAME }}/domains/api.edunova.mg/"
+      - name: Step 3.2 - Debug variables
+        run: |
+          echo "HOST: ${{ secrets.DEPLOY_HOST }}"
+          echo "PORT: ${{ secrets.DEPLOY_PORT }}"
+          echo "USER: ${{ secrets.DEPLOY_USER }}"
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "ERROR: SSH_PRIVATE_KEY is empty"
+            exit 1
+          else
+            echo "SSH_PRIVATE_KEY exists"
+          fi
 
-      - name: Step 3.3 - Execute deployment commands
-        uses: appleboy/ssh-action@master
+      - name: Step 3.3 - Send files to server
+        uses: appleboy/scp-action@v0.1.4
         with:
-          host: ${{ secrets.HOST }}
-          port: ${{ secrets.PORT }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy.zip"
+          target: "/home/${{ secrets.DEPLOY_USER }}/domains/api.edunova.mg/"
+          debug: true
+
+      - name: Step 3.4 - Execute deployment commands
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/${{ secrets.USERNAME }}/domains/api.edunova.mg/
+            cd /home/${{ secrets.DEPLOY_USER }}/domains/api.edunova.mg/
 
             echo "START DEPLOYMENT"
 

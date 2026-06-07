@@ -74,6 +74,33 @@ class FinanceController extends Controller
         ]);
     }
 
+    public function storeCategorie(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nom' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'type' => 'required|in:entree,sortie'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        if ($request->type === 'entree') {
+            $categorie = CategorieEntree::create([
+                'nom' => $request->nom,
+                'description' => $request->description
+            ]);
+        } else {
+            $categorie = CategorieSortie::create([
+                'nom' => $request->nom,
+                'description' => $request->description
+            ]);
+        }
+
+        return response()->json(['success' => true, 'data' => $categorie]);
+    }
+
     public function storeEntree(Request $request)
     {
         // Support des noms de champs frontend

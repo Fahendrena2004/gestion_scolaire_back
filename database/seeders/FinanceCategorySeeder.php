@@ -17,6 +17,9 @@ class FinanceCategorySeeder extends Seeder
             ['nom' => 'Frais d\'Inscription', 'description' => 'Frais d\'inscription annuelle'],
             ['nom' => 'Donation', 'description' => 'Dons de bienfaiteurs'],
             ['nom' => 'Partenariat', 'description' => 'Soutiens d\'organisations partenaires'],
+            ['nom' => 'Partenaire', 'description' => 'Soutien provenant d\'un partenaire'],
+            ['nom' => 'Association', 'description' => 'Soutien provenant d\'une association'],
+            ['nom' => 'Ministere', 'description' => 'Soutien provenant du ministere'],
             ['nom' => 'Vente Fournitures', 'description' => 'Vente de matériel scolaire'],
         ];
 
@@ -26,6 +29,9 @@ class FinanceCategorySeeder extends Seeder
 
         $categoriesSortie = [
             ['nom' => 'Salaire', 'description' => 'Paiement des salaires du personnel'],
+            ['nom' => 'Prime', 'description' => 'Prime du personnel'],
+            ['nom' => 'Bonus', 'description' => 'Bonus du personnel'],
+            ['nom' => 'Avance', 'description' => 'Avance sur salaire'],
             ['nom' => 'Professeur', 'description' => 'Paiement des honoraires des professeurs'],
             ['nom' => 'Surveillance', 'description' => 'Paiement des surveillants'],
             ['nom' => 'Gardien', 'description' => 'Paiement du service de gardiennage'],
@@ -33,6 +39,8 @@ class FinanceCategorySeeder extends Seeder
             ['nom' => 'Coach', 'description' => 'Paiement des coachs sportifs'],
             ['nom' => 'Craie', 'description' => 'Achat de craies et petit matériel'],
             ['nom' => 'JIRAMA', 'description' => 'Factures d\'électricité et d\'eau'],
+            ['nom' => 'Materielle', 'description' => 'Achat de materiels pour l\'ecole'],
+            ['nom' => 'Aliment', 'description' => 'Achats alimentaires et restauration'],
             ['nom' => 'Cantine', 'description' => 'Achats pour la restauration'],
             ['nom' => 'Médical', 'description' => 'Achats de pharmacie et soins'],
             ['nom' => 'Maintenance', 'description' => 'Entretien des bâtiments'],

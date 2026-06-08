@@ -109,7 +109,9 @@ class ClasseController extends Controller
             'nom_classe'      => 'required|string|max:100',
             'niveau_id'       => 'required|exists:niveaux,id',
             'code_division'   => 'required|string|max:10',
-            'anneeScolaire_id' => 'required|exists:annee_scolaires,id',
+            'anneeScolaire_id' => 'nullable|exists:annee_scolaires,id',
+            'annee_scolaire_id' => 'nullable|exists:annee_scolaires,id',
+            'id_annee_scolaire' => 'nullable|exists:annee_scolaires,id',
             'max_effectif'    => 'nullable|integer|min:1|max:200',
         ]);
 
@@ -117,9 +119,16 @@ class ClasseController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $classe = Classe::create($request->only([
-            'nom_classe', 'niveau_id', 'code_division', 'anneeScolaire_id', 'max_effectif',
-        ]));
+        $dataToCreate = $request->only([
+            'nom_classe', 'niveau_id', 'code_division', 'max_effectif',
+        ]);
+        
+        // Ensure the correct database column gets filled regardless of frontend key
+        $dataToCreate['anneeScolaire_id'] = $request->input('anneeScolaire_id') 
+            ?? $request->input('annee_scolaire_id') 
+            ?? $request->input('id_annee_scolaire');
+
+        $classe = Classe::create($dataToCreate);
 
         return response()->json([
             'success' => true,

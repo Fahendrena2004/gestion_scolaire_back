@@ -30,7 +30,6 @@ class NiveauController extends Controller
         $validator = Validator::make($request->all(), [
             'cycle'      => 'required|in:primaire,college,lycee',
             'nom_niveau' => 'required|unique:niveaux,nom_niveau',
-            'serie'      => 'nullable|in:S,L,OSE,Technique,D,C,A1,A2',
         ]);
 
         if ($validator->fails()) {

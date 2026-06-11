@@ -74,6 +74,33 @@ class FinanceController extends Controller
         ]);
     }
 
+    public function storeCategorie(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nom' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'type' => 'required|in:entree,sortie'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        if ($request->type === 'entree') {
+            $categorie = CategorieEntree::create([
+                'nom' => $request->nom,
+                'description' => $request->description
+            ]);
+        } else {
+            $categorie = CategorieSortie::create([
+                'nom' => $request->nom,
+                'description' => $request->description
+            ]);
+        }
+
+        return response()->json(['success' => true, 'data' => $categorie]);
+    }
+
     public function storeEntree(Request $request)
     {
         // Support des noms de champs frontend
@@ -98,7 +125,7 @@ class FinanceController extends Controller
         }
 
         $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
-        
+
         DB::beginTransaction();
         try {
             $entree = Entree::create([
@@ -110,11 +137,37 @@ class FinanceController extends Controller
                 'donneur_id' => $request->donneur_id,
                 'annee_scolaire_id' => $anneeScolaire->id,
                 'description' => $request->description,
-                'created_by' => auth()->id()
+                'created_by' => \Illuminate\Support\Facades\Auth::id()
             ]);
 
+            // Synchronisation avec les paiements des élèves
+            if ($request->inscription_id) {
+                $paiement = \App\Models\Inscription\Paiement::create([
+                    'reference' => 'PAY-FIN-' . time(),
+                    'inscription_id' => $request->inscription_id,
+                    'type' => 'avance', // Considéré comme une avance ou un paiement global
+                    'libelle' => 'Paiement direct (Finance) : ' . ($request->description ?? 'Entrée en caisse'),
+                    'details' => null,
+                    'montant' => $request->montant,
+                    'date_paiement' => $request->date_entree,
+                    'utilisateur_id' => \Illuminate\Support\Facades\Auth::id(),
+                ]);
+
+                $resume = \App\Models\Paiement\ResumePaiement::where('inscription_id', $request->inscription_id)->first();
+                if ($resume) {
+                    $totalPaye = (float) \App\Models\Inscription\Paiement::where('inscription_id', $request->inscription_id)->sum('montant');
+                    $resume->update([
+                        'total_paye' => $totalPaye,
+                        'total_restant' => max((float) $resume->total_du - $totalPaye, 0),
+                    ]);
+                }
+            }
+
             // Mise à jour caisse
-            $caisse = Caisse::where('annee_scolaire_id', $anneeScolaire->id)->first();
+            $caisse = Caisse::firstOrCreate(
+                ['annee_scolaire_id' => $anneeScolaire->id],
+                ['nom' => 'Caisse Principale', 'solde' => 0]
+            );
             $caisse->increment('solde', $request->montant);
 
             DB::commit();
@@ -148,17 +201,20 @@ class FinanceController extends Controller
         }
 
         $categorie = CategorieSortie::find($request->type_sortie_id);
-        
+
         // Vérification salaire
         if (str_contains(strtolower($categorie->nom), 'salaire') && !$request->staff_id) {
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Le personnel (staff_id) est obligatoire pour une sortie de type Salaire.'
             ], 422);
         }
 
         $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
-        $caisse = Caisse::where('annee_scolaire_id', $anneeScolaire->id)->first();
+        $caisse = Caisse::firstOrCreate(
+            ['annee_scolaire_id' => $anneeScolaire->id],
+            ['nom' => 'Caisse Principale', 'solde' => 0]
+        );
 
         if ($caisse->solde < $request->montant) {
             return response()->json(['success' => false, 'message' => 'Solde insuffisant dans la caisse.'], 422);
@@ -175,8 +231,8 @@ class FinanceController extends Controller
                 'statut' => 'paye', // Directement payé
                 'annee_scolaire_id' => $anneeScolaire->id,
                 'description' => $request->description,
-                'created_by' => auth()->id(),
-                'paid_by' => auth()->id()
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'paid_by' => \Illuminate\Support\Facades\Auth::id()
             ]);
 
             $caisse->decrement('solde', $request->montant);
@@ -271,7 +327,7 @@ class FinanceController extends Controller
     public function archiveYear($anneeId)
     {
         $annee = AnneeScolaire::findOrFail($anneeId);
-        
+
         DB::beginTransaction();
         try {
             // Archiver Entrees

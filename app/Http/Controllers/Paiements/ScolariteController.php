@@ -16,6 +16,7 @@ use App\Models\Paiement\ResumePaiement;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ScolariteController extends Controller
 {
@@ -31,7 +32,7 @@ class ScolariteController extends Controller
 
         $montantMensuel = $this->getMontantMensuel($inscription);
         $moisAnnee = $this->genererMoisAnneeScolaire($inscription);
-        
+
         $moisPayes = PaiementMensuel::with('paiement')->whereHas('resume', function ($query) use ($inscriptionId) {
             $query->where('inscription_id', $inscriptionId);
         })->get()->keyBy(fn ($item) => $item->annee . '-' . $item->mois);
@@ -40,7 +41,7 @@ class ScolariteController extends Controller
         $paiementsPartiels = Paiement::where('inscription_id', $inscriptionId)
             ->where('type', 'scolarite_mensuelle')
             ->get();
-            
+
         $sommePartielle = [];
         foreach ($paiementsPartiels as $p) {
             $details = is_string($p->details) ? json_decode($p->details, true) : $p->details;
@@ -53,7 +54,7 @@ class ScolariteController extends Controller
         $mois = collect($moisAnnee)->map(function ($periode) use ($moisPayes, $montantMensuel, $sommePartielle) {
             $key = $periode['annee'] . '-' . $periode['mois'];
             $lignePaye = $moisPayes->get($key);
-            
+
             $dejaPaye = $lignePaye ? $montantMensuel : ($sommePartielle[$key] ?? 0);
 
             return [
@@ -122,7 +123,7 @@ class ScolariteController extends Controller
             $typeFraisId = $this->getTypeFraisScolariteId($inscription);
 
             if (!$typeFraisId) {
-                \Log::warning('Type de frais scolarité non trouvé pour l\'élève ID: ' . $inscription->id);
+                Log::warning('Type de frais scolarité non trouvé pour l\'élève ID: ' . $inscription->id);
                 return response()->json([
                     'success' => false,
                     'message' => 'Type de frais scolarité non trouvé pour cet élève (Vérifiez la configuration des frais dans l\'onglet "Configuration")',
@@ -132,7 +133,7 @@ class ScolariteController extends Controller
             // --- NOUVELLE LOGIQUE DE PAIEMENT PARTIEL ---
             $montantMensuel = $this->getMontantMensuel($inscription);
             $userId = $this->getUtilisateurId($request);
-            
+
             // 1. Calcul du montant à distribuer
             $montantVerseTotal = (float) $request->input('montant_verse', 0);
             if ($montantVerseTotal <= 0) {
@@ -144,7 +145,7 @@ class ScolariteController extends Controller
             $paiementsPartiels = Paiement::where('inscription_id', $inscription->id)
                 ->where('type', 'scolarite_mensuelle')
                 ->get();
-                
+
             $sommePartielle = [];
             foreach ($paiementsPartiels as $p) {
                 $details = is_string($p->details) ? json_decode($p->details, true) : $p->details;
@@ -182,7 +183,7 @@ class ScolariteController extends Controller
                 $resteAPayerPourCeMois = max(0, $montantMensuel - $dejaPaye);
 
                 if ($resteAPayerPourCeMois <= 0) {
-                    continue; 
+                    continue;
                 }
 
                 $montantAPayerMois = min($resteAPayerPourCeMois, $resteADistribuer);
@@ -358,23 +359,21 @@ class ScolariteController extends Controller
     private function genererMoisAnneeScolaire(Inscription $inscription): array
     {
         $anneeScolaire = $inscription->anneeScolaire ?? $inscription->classe?->anneeScolaire;
-        
+
         if (!$anneeScolaire) {
-            $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first() 
+            $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first()
                           ?? AnneeScolaire::latest()->first();
         }
-        
+
         // Fallback dates if missing
         $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
         $dateFinStr = $anneeScolaire?->date_fin ?? ((date('Y') + 1) . '-06-30');
 
         $dateDebut = Carbon::parse($dateDebutStr)->startOfMonth();
         $dateFin = Carbon::parse($dateFinStr)->startOfMonth();
-        
+
         // Ensure at least 10 months if the range is too small
-        if ($dateDebut->diffInMonths($dateFin) < 5) {
-            $dateFin = $dateDebut->copy()->addMonths(9);
-        }
+
 
         $mois = [];
         $tempDate = $dateDebut->copy();
@@ -440,37 +439,20 @@ class ScolariteController extends Controller
             default => 'Scolarité',
         };
 
-        // Try primary labels (Scolarité)
-        $id = $inscription->fraisAppliques()
-            ->whereHas('typeFrais', function ($query) use ($libelle) {
-                $query->where('libelle', 'like', '%' . $libelle . '%');
-            })
-            ->value('id_frais');
+        $id = $inscription->fraisAppliques()->whereHas('typeFrais', function ($query) use ($libelle) {
+            $query->where('libelle', 'like', '%' . $libelle . '%');
+        })->value('id_frais');
 
         if (!$id) {
-            // Fallback 1: try generic Scolarité
-            $id = $inscription->fraisAppliques()
-                ->whereHas('typeFrais', function ($query) {
-                    $query->where('libelle', 'like', '%Scolarité%');
-                })
-                ->value('id_frais');
+            $id = $inscription->fraisAppliques()->whereHas('typeFrais', function ($query) {
+                $query->where('libelle', 'like', '%scolarit%')->orWhere('libelle', 'like', '%ecolage%')->orWhere('libelle', 'like', '%mensualit%')->orWhere('libelle', 'like', '%mensuel%')->orWhere('libelle', 'like', '%pension%');
+            })->value('id_frais');
         }
 
         if (!$id) {
-            // Fallback 2: try Ecolage
-            $id = $inscription->fraisAppliques()
-                ->whereHas('typeFrais', function ($query) {
-                    $query->where('libelle', 'like', '%Ecolage%');
-                })
-                ->value('id_frais');
-        }
-
-        if (!$id) {
-            // Fallback 3: Search global TypeFrais table directly
-            $id = TypeFrais::where('libelle', 'like', '%Scolarité%')
-                ->orWhere('libelle', 'like', '%Ecolage%')
-                ->orderByRaw('CASE WHEN libelle like "%' . $libelle . '%" THEN 0 ELSE 1 END')
-                ->value('id');
+            $id = \App\Models\Inscription\TypeFrais::where(function($query) {
+                $query->where('libelle', 'like', '%scolarit%')->orWhere('libelle', 'like', '%ecolage%')->orWhere('libelle', 'like', '%mensualit%')->orWhere('libelle', 'like', '%mensuel%')->orWhere('libelle', 'like', '%pension%');
+            })->value('id');
         }
 
         return $id;
@@ -520,9 +502,9 @@ class ScolariteController extends Controller
                 ])
                 ->unique(fn ($periode) => $periode['annee'] . '-' . $periode['mois'])
                 ->values();
-            
+
             if ($mois->isEmpty()) {
-                \Log::info('extraireMoisDemandes: mois array is empty after mapping', ['raw' => $request->mois]);
+                Log::info('extraireMoisDemandes: mois array is empty after mapping', ['raw' => $request->mois]);
             }
             return $mois;
         }
@@ -539,7 +521,7 @@ class ScolariteController extends Controller
                 ->values();
         }
 
-        \Log::info('extraireMoisDemandes: no mois or paiements_mensuels_ids provided', $request->all());
+        Log::info('extraireMoisDemandes: no mois or paiements_mensuels_ids provided', $request->all());
         return collect([]);
     }
 }

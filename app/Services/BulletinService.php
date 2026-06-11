@@ -23,8 +23,16 @@ class BulletinService
             return 0;
         }
 
-        $total = $notes->sum('valeur');
-        $nombreNotes = $notes->count();
+        $total = 0;
+        $nombreNotes = 0;
+
+        foreach ($notes as $note) {
+            if ($note->interro1 !== null) { $total += $note->interro1; $nombreNotes++; }
+            if ($note->interro2 !== null) { $total += $note->interro2; $nombreNotes++; }
+            if ($note->examen !== null) { $total += $note->examen; $nombreNotes++; }
+        }
+
+        if ($nombreNotes == 0) return 0;
 
         return round($total / $nombreNotes, 2);
     }

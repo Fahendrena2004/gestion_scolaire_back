@@ -215,7 +215,8 @@ class CantineController extends Controller
             // --- INTEGRATION FINANCE ---
             $typeCantineCat = CategorieEntree::where('nom', 'like', '%Cantine%')->first()
                             ?? CategorieEntree::where('nom', 'like', '%Autres%')->first()
-                            ?? CategorieEntree::where('nom', 'like', '%Inscription%')->first();
+                            ?? CategorieEntree::firstOrCreate(['nom' => 'Cantine'], ['description' => 'Recettes de la cantine']);
+
             if ($typeCantineCat && $totalMontant > 0) {
                 Entree::create([
                     'reference' => 'ENT-CAN-' . time(),
@@ -270,6 +271,7 @@ class CantineController extends Controller
             'total_paye' => $totalPaye,
             'total_restant' => max((float) $resume->total_du - $totalPaye, 0),
         ]);
+
     }
 
     private function mettreAJourResumeDepuisCantine(int $inscriptionId): void
@@ -312,7 +314,11 @@ class CantineController extends Controller
 
     private function getTypeCantine(?int $anneeScolaireId): ?TypeFrais
     {
-        return TypeFrais::where('libelle', 'Cantine')
+        return TypeFrais::where(function($q) {
+                $q->where('libelle', 'Cantine')
+                  ->orWhere('libelle', 'like', '%cantine%')
+                  ->orWhere('libelle', 'like', '%Cantine%');
+            })
             ->where(function ($query) use ($anneeScolaireId) {
                 if ($anneeScolaireId) {
                     $query->where('annee_scolaire_id', $anneeScolaireId)

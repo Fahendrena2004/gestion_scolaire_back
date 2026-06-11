@@ -12,10 +12,11 @@ class Notes extends Model
     protected $fillable = [
         'inscription_id',
         'matiere_id',
-        'valeur',
+        'interro1',
+        'interro2',
+        'examen',
         'periode',
         'date',
-        'type',
         'appreciation',
     ];
 

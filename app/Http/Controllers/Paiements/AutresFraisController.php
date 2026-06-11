@@ -25,9 +25,16 @@ class AutresFraisController extends Controller
 
         $frais = $inscription->fraisAppliques
             ->filter(function ($frais) {
-                $libelle = $frais->typeFrais?->libelle;
+                $libelle = strtolower((string) $frais->typeFrais?->libelle);
+                $normalizedLibelle = str_replace(['é', 'è', 'ê'], 'e', $libelle);
 
-                return $libelle !== 'Cantine' && !str_starts_with((string) $libelle, 'Scolarité');
+                $isCantine = str_contains($normalizedLibelle, 'cantine');
+                $isScolarite = str_contains($normalizedLibelle, 'scolarit') ||
+                               str_contains($normalizedLibelle, 'ecolage') ||
+                               str_contains($normalizedLibelle, 'mensualit') ||
+                               str_contains($normalizedLibelle, 'mensuel');
+
+                return !$isCantine && !$isScolarite;
             })
             ->map(function ($frais) use ($inscriptionId) {
                 $montantPaye = (float) Paiement::where('inscription_id', $inscriptionId)
@@ -92,9 +99,16 @@ class AutresFraisController extends Controller
                 ->whereIn('id', $ids)
                 ->get()
                 ->filter(function ($frais) {
-                    $libelle = $frais->typeFrais?->libelle;
+                    $libelle = strtolower((string) $frais->typeFrais?->libelle);
+                    $normalizedLibelle = str_replace(['é', 'è', 'ê'], 'e', $libelle);
 
-                    return $libelle !== 'Cantine' && !str_starts_with((string) $libelle, 'Scolarité');
+                    $isCantine = str_contains($normalizedLibelle, 'cantine');
+                    $isScolarite = str_contains($normalizedLibelle, 'scolarit') ||
+                                   str_contains($normalizedLibelle, 'ecolage') ||
+                                   str_contains($normalizedLibelle, 'mensualit') ||
+                                   str_contains($normalizedLibelle, 'mensuel');
+
+                    return !$isCantine && !$isScolarite;
                 });
 
             if ($fraisSelectionnes->isEmpty()) {
@@ -110,6 +124,11 @@ class AutresFraisController extends Controller
             $totalMontant = 0;
             $paiementsEnregistres = [];
 
+            // Distribution du montant_verse si fourni
+            $montantVerse = (float) $request->input('montant_verse', 0);
+            $hasMontantVerse = $request->has('montant_verse');
+            $resteADistribuer = $montantVerse;
+
             foreach ($fraisSelectionnes as $frais) {
                 $montantPaye = (float) Paiement::where('inscription_id', $inscription->id)
                     ->where('type', 'autre_frais')
@@ -122,6 +141,12 @@ class AutresFraisController extends Controller
                     continue;
                 }
 
+                if ($hasMontantVerse && $resteADistribuer <= 0) {
+                    break;
+                }
+
+                $montantAPayer = $hasMontantVerse ? min($montantRestant, $resteADistribuer) : $montantRestant;
+
                 $paiement = Paiement::create([
                     'reference' => $this->genererReference(),
                     'inscription_id' => $inscription->id,
@@ -131,7 +156,7 @@ class AutresFraisController extends Controller
                     'details' => [
                         'frais_applique_id' => $frais->id,
                     ],
-                    'montant' => $montantRestant,
+                    'montant' => $montantAPayer,
                     'date_paiement' => now(),
                     'utilisateur_id' => $userId,
                 ]);
@@ -140,7 +165,7 @@ class AutresFraisController extends Controller
                     'numero' => Recu::genererNumero(),
                     'paiement_id' => $paiement->id,
                     'inscription_id' => $inscription->id,
-                    'montant' => $montantRestant,
+                    'montant' => $montantAPayer,
                     'date_emission' => now(),
                     'libelle' => $frais->typeFrais?->libelle,
                     'details' => json_encode([
@@ -148,11 +173,15 @@ class AutresFraisController extends Controller
                     ]),
                 ]);
 
-                $totalMontant += $montantRestant;
+                if ($hasMontantVerse) {
+                    $resteADistribuer -= $montantAPayer;
+                }
+
+                $totalMontant += $montantAPayer;
                 $paiementsEnregistres[] = [
                     'frais_applique_id' => $frais->id,
                     'libelle' => $frais->typeFrais?->libelle,
-                    'montant' => $montantRestant,
+                    'montant' => $montantAPayer,
                     'paiement_id' => $paiement->id,
                     'recu_id' => $recu->id,
                 ];
@@ -165,15 +194,16 @@ class AutresFraisController extends Controller
                 // On essaie de trouver une catégorie qui correspond au premier frais, sinon "Inscription" par défaut
                 $firstFrais = $fraisSelectionnes->first();
                 $libelleFrais = $firstFrais->typeFrais?->libelle ?? 'Autres Frais';
-                
-                $typeEntree = CategorieEntree::where('nom', $libelleFrais)->first() 
-                            ?? CategorieEntree::where('nom', 'Inscription')->first();
+
+                $typeEntree = CategorieEntree::where('nom', $libelleFrais)->first()
+                            ?? CategorieEntree::where('nom', 'Autres Frais')->first()
+                            ?? CategorieEntree::firstOrCreate(['nom' => 'Autres Frais'], ['description' => 'Recettes des autres frais et activités']);
 
                 Entree::create([
                     'reference' => 'ENT-AUT-' . time(),
                     'montant' => $totalMontant,
                     'date_entree' => now(),
-                    'type_entree_id' => $typeEntree?->id ?? 2, // 2 = Inscription par défaut si rien d'autre
+                    'type_entree_id' => $typeEntree->id,
                     'inscription_id' => $inscription->id,
                     'annee_scolaire_id' => $inscription->id_annee_scolaire,
                     'description' => 'Paiement ' . $libelleFrais . (count($paiementsEnregistres) > 1 ? ' et autres' : ''),

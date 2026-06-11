@@ -66,10 +66,11 @@ class NotesController extends Controller
         $validator = Validator::make($request->all(), [
             'eleve_id' => 'required|exists:eleves,id',
             'matiere_id' => 'required|exists:matieres,id',
-            'valeur' => 'required|numeric|min:0|max:20',
+            'interro1' => 'nullable|numeric|min:0|max:20',
+            'interro2' => 'nullable|numeric|min:0|max:20',
+            'examen' => 'nullable|numeric|min:0|max:20',
             'periode' => 'required|string|in:' . implode(',', self::PERIODES_VALIDES),
             'date' => 'required|date',
-            'type' => 'required|string',
             'appreciation' => 'nullable|string',
         ]);
 
@@ -95,27 +96,39 @@ class NotesController extends Controller
                 ], 422);
             }
 
-            $noteData = $request->only([
-                'matiere_id',
-                'valeur',
-                'periode',
-                'date',
-                'type',
-                'appreciation',
-            ]);
-            $noteData['inscription_id'] = $inscription->id;
+            $updateData = [];
+            if ($request->has('interro1')) $updateData['interro1'] = $request->interro1;
+            if ($request->has('interro2')) $updateData['interro2'] = $request->interro2;
+            if ($request->has('examen')) $updateData['examen'] = $request->examen;
+            if ($request->has('date')) $updateData['date'] = $request->date;
+            if ($request->has('appreciation')) $updateData['appreciation'] = $request->appreciation;
 
-            if (empty($noteData['appreciation'])) {
-                $noteData['appreciation'] = $this->calculerAppreciation($noteData['valeur']);
+            if (empty($updateData['appreciation']) && count($updateData) > 0) {
+                $total = 0;
+                $count = 0;
+                if (isset($updateData['interro1'])) { $total += $updateData['interro1']; $count++; }
+                if (isset($updateData['interro2'])) { $total += $updateData['interro2']; $count++; }
+                if (isset($updateData['examen'])) { $total += $updateData['examen']; $count++; }
+                
+                if ($count > 0) {
+                    $updateData['appreciation'] = $this->calculerAppreciation($total / $count);
+                }
             }
 
-            $note = Notes::create($noteData);
+            $note = Notes::updateOrCreate(
+                [
+                    'inscription_id' => $inscription->id,
+                    'matiere_id' => $matiere->id,
+                    'periode' => $request->periode,
+                ],
+                $updateData
+            );
+
             $noteWithMatiere = Notes::with('matiere')->find($note->id);
-            
 
             return response()->json([
                 'success' => true,
-                'message' => 'Note ajoutee avec succes',
+                'message' => 'Note ajoutee/mise a jour avec succes',
                 'data' => $noteWithMatiere,
             ], 201);
         } catch (\Exception $e) {
@@ -156,7 +169,9 @@ class NotesController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'valeur' => 'sometimes|numeric|min:0|max:20',
+            'interro1' => 'sometimes|numeric|min:0|max:20',
+            'interro2' => 'sometimes|numeric|min:0|max:20',
+            'examen' => 'sometimes|numeric|min:0|max:20',
             'date' => 'sometimes|date',
             'appreciation' => 'nullable|string',
         ]);
@@ -166,9 +181,22 @@ class NotesController extends Controller
         }
 
         try {
-            $updateData = $request->only(['valeur', 'date', 'appreciation']);
-            if (isset($updateData['valeur']) && empty($updateData['appreciation'])) {
-                $updateData['appreciation'] = $this->calculerAppreciation($updateData['valeur']);
+            $updateData = $request->only(['interro1', 'interro2', 'examen', 'date', 'appreciation']);
+            if (empty($updateData['appreciation']) && (isset($updateData['interro1']) || isset($updateData['interro2']) || isset($updateData['examen']))) {
+                $total = 0;
+                $count = 0;
+                
+                $i1 = $updateData['interro1'] ?? $note->interro1;
+                $i2 = $updateData['interro2'] ?? $note->interro2;
+                $ex = $updateData['examen'] ?? $note->examen;
+                
+                if ($i1 !== null) { $total += $i1; $count++; }
+                if ($i2 !== null) { $total += $i2; $count++; }
+                if ($ex !== null) { $total += $ex; $count++; }
+
+                if ($count > 0) {
+                    $updateData['appreciation'] = $this->calculerAppreciation($total / $count);
+                }
             }
             Notes::where('id', $id)->update($updateData);
             $updatedNote = Notes::with('matiere')->find($id);
@@ -315,7 +343,15 @@ class NotesController extends Controller
         ];
         
         foreach ($notesList as $note) {
-            $v = (float) $note->valeur;
+            $total = 0;
+            $count = 0;
+            if ($note->interro1 !== null) { $total += $note->interro1; $count++; }
+            if ($note->interro2 !== null) { $total += $note->interro2; $count++; }
+            if ($note->examen !== null) { $total += $note->examen; $count++; }
+            
+            if ($count === 0) continue;
+            
+            $v = (float) ($total / $count);
             if ($v < 10) $distribution['0-9']++;
             elseif ($v < 12) $distribution['10-11']++;
             elseif ($v < 14) $distribution['12-13']++;
@@ -364,7 +400,7 @@ class NotesController extends Controller
                 return [
                     'id' => 'note_' . $note->id,
                     'action' => 'Nouvelle note ajoutée',
-                    'details' => $note->valeur . '/20 en ' . ($note->matiere ? $note->matiere->nom : 'Matière inconnue'),
+                    'details' => 'Notes (I1: ' . ($note->interro1 ?? '-') . ', I2: ' . ($note->interro2 ?? '-') . ', Ex: ' . ($note->examen ?? '-') . ') en ' . ($note->matiere ? $note->matiere->nom : 'Matière inconnue'),
                     'concerne' => $eleve,
                     'date' => $note->created_at->format('Y-m-d H:i:s'),
                     'status' => 'success',

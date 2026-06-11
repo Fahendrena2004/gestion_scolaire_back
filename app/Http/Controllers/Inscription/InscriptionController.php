@@ -59,6 +59,21 @@ class InscriptionController extends Controller
             });
         }
 
+        if ($request->has('cycle')) {
+            $query->whereHas('classe.niveau', function ($q) use ($request) {
+                $q->where('cycle', $request->cycle);
+            });
+        }
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->whereHas('eleve', function ($q) use ($search) {
+                $q->where('nom', 'like', '%' . $search . '%')
+                  ->orWhere('prenom', 'like', '%' . $search . '%')
+                  ->orWhere('matricule', 'like', '%' . $search . '%');
+            });
+        }
+
         if ($request->has('statut_paiement')) {
             $statut = $request->statut_paiement; // 'paye' ou 'non_paye'
             $query->whereHas('resumePaiement', function ($q) use ($statut) {
@@ -226,7 +241,7 @@ class InscriptionController extends Controller
             // Incrémenter l'effectif de la classe
             $classe->increment('effectif');
 
-            $montantTotal = $this->appliquerFrais($inscription, $classe->niveau->cycle, $anneeActive);
+            $montantTotal = $this->appliquerFrais($inscription, $classe->niveau->cycle, $anneeActive, $request);
 
             $inscription->update([
                 'montant_total' => $montantTotal,
@@ -238,7 +253,7 @@ class InscriptionController extends Controller
             $montantVerse = (float) $request->input('montant_verse', 0);
 
             if ($montantVerse > 0) {
-                $this->enregistrerPaiementInitial($inscription, $resume, $montantVerse, $utilisateurId);
+                $this->enregistrerPaiementInitial($inscription, $resume, $request, $utilisateurId);
             }
             $this->mettreAJourResumePaiement($resume);
 
@@ -411,10 +426,54 @@ class InscriptionController extends Controller
             $eleve->save();
 
             if ($request->has('parascolaire')) {
-                $inscription->parascolaire = $request->boolean('parascolaire');
+                $oldValue = $inscription->parascolaire;
+                $newValue = $request->boolean('parascolaire');
+                $inscription->parascolaire = $newValue;
+
+                if (!$oldValue && $newValue) {
+                    $cycle = $inscription->classe?->niveau?->cycle ?? '';
+                    $niveauNom = $inscription->classe?->niveau?->nom ?? '';
+
+                    $existe = $inscription->fraisAppliques()->whereHas('typeFrais', function ($q) {
+                        $q->where('libelle', 'like', '%parascolaire%')
+                          ->orWhere('libelle', 'like', '%para-scolaire%')
+                          ->orWhere('libelle', 'like', '%para scolaire%');
+                    })->exists();
+
+                    if (!$existe) {
+                        $addedAmount = $this->ajouterFrais($inscription, 'Parascolaire', 1, $cycle, $niveauNom);
+                        if ($addedAmount > 0 && $inscription->resumePaiement) {
+                            $inscription->resumePaiement->increment('total_du', $addedAmount);
+                            $inscription->resumePaiement->increment('total_restant', $addedAmount);
+                            $inscription->increment('montant_total', $addedAmount);
+                            $inscription->increment('montant_net', $addedAmount);
+                        }
+                    }
+                }
             }
             if ($request->has('cantine')) {
-                $inscription->cantine = $request->boolean('cantine');
+                $oldValue = $inscription->cantine;
+                $newValue = $request->boolean('cantine');
+                $inscription->cantine = $newValue;
+
+                if (!$oldValue && $newValue) {
+                    $cycle = $inscription->classe?->niveau?->cycle ?? '';
+                    $niveauNom = $inscription->classe?->niveau?->nom ?? '';
+
+                    $existe = $inscription->fraisAppliques()->whereHas('typeFrais', function ($q) {
+                        $q->where('libelle', 'like', '%cantine%');
+                    })->exists();
+
+                    if (!$existe) {
+                        $addedAmount = $this->ajouterFrais($inscription, 'Cantine', 1, $cycle, $niveauNom);
+                        if ($addedAmount > 0 && $inscription->resumePaiement) {
+                            $inscription->resumePaiement->increment('total_du', $addedAmount);
+                            $inscription->resumePaiement->increment('total_restant', $addedAmount);
+                            $inscription->increment('montant_total', $addedAmount);
+                            $inscription->increment('montant_net', $addedAmount);
+                        }
+                    }
+                }
             }
 
             $inscription->save();
@@ -557,32 +616,101 @@ class InscriptionController extends Controller
         );
     }
 
-    private function appliquerFrais(Inscription $inscription, string $cycle, AnneeScolaire $anneeScolaire): float
+    private function appliquerFrais(Inscription $inscription, string $cycle, AnneeScolaire $anneeScolaire, Request $request = null): float
     {
         $montantTotal = 0;
+        $niveauNom = $inscription->classe?->niveau?->nom ?? '';
 
-        $montantTotal += $this->ajouterFrais($inscription, 'Inscription');
-        $montantTotal += $this->ajouterFrais(
-            $inscription,
-            $this->getLibelleScolarite($cycle),
-            $this->compterMoisScolaires($anneeScolaire)
-        );
-        $montantTotal += $this->ajouterFrais($inscription, 'Frais technologiques');
+        if ($request && $request->has('selected_frais') && $request->has('payment_frais_details')) {
+            $selectedFrais = $request->input('selected_frais', []);
+            $fraisDetails = $request->input('payment_frais_details', []);
 
-        if ($inscription->parascolaire) {
-            $montantTotal += $this->ajouterFrais($inscription, 'Parascolaire');
-        }
+            $appliedIds = [];
 
-        if ($inscription->cantine) {
-            $montantTotal += $this->ajouterFrais($inscription, 'Cantine');
+            foreach ($selectedFrais as $index) {
+                if (isset($fraisDetails[$index]['id'])) {
+                    $typeFraisId = $fraisDetails[$index]['id'];
+                    $typeFrais = TypeFrais::find($typeFraisId);
+
+                    if ($typeFrais) {
+                        // Check if it's scolarité to apply multiplier
+                        $normalizedLibelle = str_replace(['é', 'è', 'ê'], 'e', strtolower($typeFrais->libelle));
+                        $isScolarite = str_contains($normalizedLibelle, 'scolarit') || str_contains($normalizedLibelle, 'ecolage') || str_contains($normalizedLibelle, 'mensualit') || str_contains($normalizedLibelle, 'mensuel') || str_contains($normalizedLibelle, 'pension');
+
+                        $multiplicateur = 1;
+                        if ($isScolarite) {
+                            $multiplicateur = $this->compterMoisScolaires($anneeScolaire);
+                        }
+
+                        $montant = (float) $typeFrais->montant * max($multiplicateur, 1);
+
+                        FraisApplique::create([
+                            'id_frais'       => $typeFrais->id,
+                            'id_inscription' => $inscription->id,
+                            'montant'        => $montant,
+                        ]);
+
+                        $montantTotal += $montant;
+                        $appliedIds[] = $typeFrais->id;
+                    }
+                }
+            }
+
+            // On s'assure d'appliquer la scolarité obligatoire et l'inscription obligatoire si pas dans la liste
+            $inscriptionFee = $this->getTypeFrais('Inscription', $anneeScolaire->id, $cycle, $niveauNom);
+            if ($inscriptionFee && !in_array($inscriptionFee->id, $appliedIds)) {
+                $montantTotal += $this->ajouterFrais($inscription, 'Inscription', 1, $cycle, $niveauNom);
+            }
+
+            $scolariteFee = $this->getTypeFrais($this->getLibelleScolarite($cycle), $anneeScolaire->id, $cycle, $niveauNom);
+            if ($scolariteFee && !in_array($scolariteFee->id, $appliedIds)) {
+                $montantTotal += $this->ajouterFrais($inscription, $this->getLibelleScolarite($cycle), $this->compterMoisScolaires($anneeScolaire), $cycle, $niveauNom);
+                $appliedIds[] = $scolariteFee->id;
+            }
+
+            if ($inscription->cantine) {
+                $cantineFee = $this->getTypeFrais('Cantine', $anneeScolaire->id, $cycle, $niveauNom);
+                if ($cantineFee && !in_array($cantineFee->id, $appliedIds)) {
+                    $montantTotal += $this->ajouterFrais($inscription, 'Cantine', 1, $cycle, $niveauNom);
+                    $appliedIds[] = $cantineFee->id;
+                }
+            }
+
+            if ($inscription->parascolaire) {
+                $paraFee = $this->getTypeFrais('Parascolaire', $anneeScolaire->id, $cycle, $niveauNom);
+                if ($paraFee && !in_array($paraFee->id, $appliedIds)) {
+                    $montantTotal += $this->ajouterFrais($inscription, 'Parascolaire', 1, $cycle, $niveauNom);
+                    $appliedIds[] = $paraFee->id;
+                }
+            }
+
+        } else {
+            // Fallback old logic
+            $montantTotal += $this->ajouterFrais($inscription, 'Inscription', 1, $cycle, $niveauNom);
+            $montantTotal += $this->ajouterFrais(
+                $inscription,
+                $this->getLibelleScolarite($cycle),
+                $this->compterMoisScolaires($anneeScolaire),
+                $cycle,
+                $niveauNom
+            );
+            $montantTotal += $this->ajouterFrais($inscription, 'Frais technologiques', 1, $cycle, $niveauNom);
+
+            if ($inscription->parascolaire) {
+                $montantTotal += $this->ajouterFrais($inscription, 'Parascolaire', 1, $cycle, $niveauNom);
+            }
+
+            if ($inscription->cantine) {
+                $montantTotal += $this->ajouterFrais($inscription, 'Cantine', 1, $cycle, $niveauNom);
+            }
         }
 
         return $montantTotal;
     }
 
-    private function ajouterFrais(Inscription $inscription, string $libelle, int $multiplicateur = 1): float
+    private function ajouterFrais(Inscription $inscription, string $libelle, int $multiplicateur = 1, string $cycle = '', string $niveau = ''): float
     {
-        $typeFrais = $this->getTypeFrais($libelle, $inscription->id_annee_scolaire);
+        $typeFrais = $this->getTypeFrais($libelle, $inscription->id_annee_scolaire, $cycle, $niveau);
 
         if (!$typeFrais) {
             return 0;
@@ -614,25 +742,46 @@ class InscriptionController extends Controller
     private function enregistrerPaiementInitial(
         Inscription $inscription,
         ResumePaiement $resume,
-        float $montantVerse,
+        Request $request,
         ?int $userId
     ): void {
+        $montantVerse = (float) $request->input('montant_verse', 0);
         $montantRestant = $montantVerse;
 
-        $fraisSimples = $inscription->fraisAppliques()
-            ->with('typeFrais')
-            ->whereHas('typeFrais', function ($query) {
-                $query->where('libelle', 'not like', 'Scolarité%')
-                      ->where('libelle', 'not like', 'Scolarite%')
-                      ->where('libelle', '!=', 'Cantine');
-            })
-            ->orderBy('id')
-            ->get();
+        // Paiement des frais simples sélectionnés ou tous les frais simples par défaut
+        $selectedFrais = $request->input('selected_frais', []);
+        $fraisDetails = $request->input('payment_frais_details', []);
+
+        $fraisSimplesQuery = $inscription->fraisAppliques()
+            ->with('typeFrais');
+
+        if (!empty($selectedFrais) && !empty($fraisDetails)) {
+            $typeFraisIdsToPay = [];
+            foreach ($selectedFrais as $index) {
+                if (isset($fraisDetails[$index]['id'])) {
+                    $typeFraisIdsToPay[] = $fraisDetails[$index]['id'];
+                }
+            }
+
+            if (!empty($typeFraisIdsToPay)) {
+                $fraisSimplesQuery->whereIn('id_frais', $typeFraisIdsToPay);
+            }
+        } else {
+            $fraisSimplesQuery->whereHas('typeFrais', function ($query) {
+                $query->where('libelle', 'not like', '%Scolarit%')
+                      ->where('libelle', 'not like', '%Ecolage%')
+                      ->where('libelle', 'not like', '%Mensualit%');
+            });
+        }
+
+        $fraisSimples = $fraisSimplesQuery->orderBy('id')->get();
 
         foreach ($fraisSimples as $frais) {
-            if ($montantRestant < $frais->montant) {
-                continue;
+            if ($montantRestant <= 0) {
+                break;
             }
+
+            $montantAPayer = min($montantRestant, $frais->montant);
 
             Paiement::create([
                 'reference'      => $this->genererReferencePaiement(),
@@ -641,12 +790,65 @@ class InscriptionController extends Controller
                 'type'           => 'autre_frais',
                 'libelle'        => $frais->typeFrais?->libelle,
                 'details'        => null,
-                'montant'        => $frais->montant,
+                'montant'        => $montantAPayer,
                 'date_paiement'  => now(),
                 'utilisateur_id' => $userId,
             ]);
 
-            $montantRestant -= (float) $frais->montant;
+            $montantRestant -= (float) $montantAPayer;
+        }
+
+        // --- Paiement de la Scolarité si des mois sont sélectionnés ---
+        $selectedMonths = $request->input('selected_months', []);
+        $paymentSchoolMonths = $request->input('payment_school_months', []);
+
+        if (!empty($selectedMonths) && !empty($paymentSchoolMonths) && $montantRestant > 0) {
+            $cycle = $inscription->classe?->niveau?->cycle ?? '';
+            $niveauNom = $inscription->classe?->niveau?->nom ?? '';
+            $typeFraisScolarite = $this->getTypeFrais($this->getLibelleScolarite($cycle), $inscription->id_annee_scolaire, $cycle, $niveauNom);
+
+            if ($typeFraisScolarite) {
+                // Montant mensuel
+                $anneeScolaire = $inscription->anneeScolaire ?? AnneeScolaire::where('statut', 'en_cours')->first();
+                $nbMois = max($this->compterMoisScolaires($anneeScolaire), 1);
+                $montantMensuel = (float)$typeFraisScolarite->montant;
+
+                foreach ($selectedMonths as $mId) {
+                    if ($montantRestant <= 0) break;
+
+                    // Chercher le mois dans le tableau
+                    $monthObj = collect($paymentSchoolMonths)->firstWhere('id', $mId);
+                    if (!$monthObj) continue;
+
+                    $montantAPayer = min($montantRestant, $montantMensuel);
+
+                    if ($montantAPayer > 0) {
+                        $paiement = Paiement::create([
+                            'reference'      => $this->genererReferencePaiement(),
+                            'inscription_id' => $inscription->id,
+                            'type_frais_id'  => $typeFraisScolarite->id,
+                            'type'           => 'scolarite_mensuelle',
+                            'libelle'        => $monthObj['label'] . ' ' . (isset($monthObj['annee']) ? $monthObj['annee'] : date('Y')),
+                            'details'        => ['mois' => $monthObj['value'], 'annee' => isset($monthObj['annee']) ? $monthObj['annee'] : date('Y')],
+                            'montant'        => $montantAPayer,
+                            'date_paiement'  => now(),
+                            'utilisateur_id' => $userId,
+                        ]);
+
+                        if ($montantAPayer >= ($montantMensuel - 0.01)) {
+                            \App\Models\Paiement\PaiementMensuel::create([
+                                'resume_id' => $resume->id,
+                                'mois' => $monthObj['value'],
+                                'annee' => isset($monthObj['annee']) ? $monthObj['annee'] : date('Y'),
+                                'montant' => $montantMensuel,
+                                'paiement_id' => $paiement->id,
+                            ]);
+                        }
+
+                        $montantRestant -= $montantAPayer;
+                    }
+                }
+            }
         }
 
         if ($montantRestant > 0) {
@@ -664,7 +866,9 @@ class InscriptionController extends Controller
 
         // --- INTEGRATION FINANCE ---
         if ($montantVerse > 0) {
-            $typeInscription = CategorieEntree::where('nom', 'like', '%Inscription%')->first();
+            $typeInscription = CategorieEntree::where('nom', 'like', '%Inscription%')->first()
+                            ?? CategorieEntree::firstOrCreate(['nom' => 'Inscription'], ['description' => 'Frais d\'inscription']);
+
             if ($typeInscription) {
                 Entree::create([
                     'reference' => 'ENT-INS-' . time(),
@@ -699,29 +903,108 @@ class InscriptionController extends Controller
         ]);
     }
 
-private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrais
+    private function getTypeFrais($libelle, $anneeId, $cycle = '', $niveau = '')
     {
         $query = TypeFrais::query();
 
         $query->where(function ($q) use ($libelle) {
             $q->where('libelle', $libelle)
               ->orWhere('libelle', 'like', '%' . $libelle . '%');
+
+            if (str_contains($libelle, 'Scolarité')) {
+                $base = trim(str_replace(['Scolarité', '-'], '', $libelle));
+
+                $q->orWhere(function($sub) use ($base) {
+                    $sub->where(function($s) {
+                        $s->where('libelle', 'like', '%scolarit%')
+                          ->orWhere('libelle', 'like', '%ecolage%')
+                          ->orWhere('libelle', 'like', '%mensualit%')
+                          ->orWhere('libelle', 'like', '%mensuel%')
+                          ->orWhere('libelle', 'like', '%pension%');
+                    });
+                    if (!empty($base)) {
+                        $sub->where('libelle', 'like', '%' . $base . '%');
+                    }
+                });
+            }
+
+            if (str_contains(strtolower($libelle), 'inscription')) {
+                $q->orWhere('libelle', 'like', '%inscription%');
+            }
+            if (str_contains(strtolower($libelle), 'cantine')) {
+                $q->orWhere('libelle', 'like', '%cantine%');
+            }
+            if (str_contains(strtolower($libelle), 'parascolaire')) {
+                $q->orWhere('libelle', 'like', '%parascolaire%')
+                  ->orWhere('libelle', 'like', '%para-scolaire%')
+                  ->orWhere('libelle', 'like', '%para scolaire%');
+            }
         });
 
-        if ($anneeScolaireId) {
-            $query->where(function ($q) use ($anneeScolaireId) {
-                $q->where('annee_scolaire_id', $anneeScolaireId)
+        if ($anneeId) {
+            $query->where(function ($q) use ($anneeId) {
+                $q->where('annee_scolaire_id', $anneeId)
                   ->orWhereNull('annee_scolaire_id');
             });
         } else {
             $query->whereNull('annee_scolaire_id');
         }
 
-        return $query->orderByRaw('CASE
-                WHEN libelle = ? THEN 0
-                WHEN annee_scolaire_id IS NOT NULL THEN 1
-                ELSE 2 END', [$libelle])
-            ->first();
+        // Récupérer tous les résultats potentiels
+        $results = $query->orderByRaw('CASE WHEN annee_scolaire_id IS NOT NULL THEN 1 ELSE 0 END')->get();
+
+        // S'il y a plus d'un résultat, on filtre par cycle et niveau
+        if ($results->count() > 1 && (!empty($cycle) || !empty($niveau))) {
+            foreach ($results as $res) {
+                $low = strtolower($res->libelle);
+                $isTargetCycle = true;
+                $isTargetNiveau = true;
+
+                // Vérifier cycle
+                if (!empty($cycle)) {
+                    $normalizedCycle = str_replace(['é', 'è'], ['e', 'e'], strtolower($cycle));
+                    $otherCycles = ['maternelle', 'primaire', 'college', 'collège', 'lycee', 'lycée', 'creche', 'crèche', 'prescolaire', 'préscolaire'];
+                    foreach ($otherCycles as $other) {
+                        $normalizedOther = str_replace(['é', 'è'], ['e', 'e'], $other);
+                        if ($normalizedOther !== $normalizedCycle && str_contains($low, $other)) {
+                            $isTargetCycle = false;
+                            break;
+                        }
+                    }
+                    if (str_contains($low, $normalizedCycle)) {
+                        $isTargetCycle = true;
+                    }
+                }
+
+                // Vérifier niveau
+                if (!empty($niveau) && str_contains($low, ' - ')) {
+                    $parts = array_map('trim', explode('-', $low));
+
+                    if (count($parts) >= 3) {
+                        $targetNiveau = end($parts);
+                        $cleanTarget = trim(preg_replace('/\s*\([^)]*\)/', '', $targetNiveau));
+                        if (!empty($cleanTarget) && !str_contains(strtolower($niveau), $cleanTarget) && !str_contains($cleanTarget, strtolower($niveau))) {
+                            $isTargetNiveau = false;
+                        }
+                    } else if (count($parts) == 2) {
+                        $targetNiveau = end($parts);
+                        $cleanTarget = trim(preg_replace('/\s*\([^)]*\)/', '', $targetNiveau));
+
+                        if (!str_contains($normalizedCycle, str_replace(['é', 'è'], ['e', 'e'], $cleanTarget)) && !str_contains(str_replace(['é', 'è'], ['e', 'e'], $cleanTarget), $normalizedCycle)) {
+                            if (!str_contains(strtolower($niveau), $cleanTarget) && !str_contains($cleanTarget, strtolower($niveau))) {
+                                $isTargetNiveau = false;
+                            }
+                        }
+                    }
+                }
+
+                if ($isTargetCycle && $isTargetNiveau) {
+                    return $res; // Le match parfait
+                }
+            }
+        }
+
+        return $results->first();
     }
 
     private function getLibelleScolarite(string $cycle): string

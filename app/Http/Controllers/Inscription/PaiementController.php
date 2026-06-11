@@ -80,13 +80,14 @@ class PaiementController extends Controller
                 // Déterminer la catégorie
                 $libelle = $paiement->libelle ?? 'Autre';
                 $typeEntree = CategorieEntree::where('nom', 'like', '%' . $libelle . '%')->first()
-                            ?? CategorieEntree::where('nom', 'Scolarité')->first(); // Défaut scolarité ou autre selon le cas
+                            ?? CategorieEntree::where('nom', 'Scolarité')->first()
+                            ?? CategorieEntree::firstOrCreate(['nom' => 'Général'], ['description' => 'Recettes diverses']);
 
                 Entree::create([
                     'reference' => 'ENT-LIB-' . time(),
                     'montant' => $paiement->montant,
                     'date_entree' => $paiement->date_paiement,
-                    'type_entree_id' => $typeEntree?->id ?? 1,
+                    'type_entree_id' => $typeEntree->id,
                     'inscription_id' => $inscription->id,
                     'annee_scolaire_id' => $inscription->id_annee_scolaire,
                     'description' => 'Paiement libre: ' . $paiement->libelle,

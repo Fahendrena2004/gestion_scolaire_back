@@ -19,11 +19,11 @@ class DatabaseSeeder extends Seeder
 
         // $this->call(AnneeScolaireSeeder::class);
         // $this->call(NiveauSeeder::class);
-        // $this->call(TypeFraisSeeder::class);
-        // $this->call(ClasseSeeder::class);
+         //$this->call(TypeFraisSeeder::class);
+         //$this->call(ClasseSeeder::class);
         $this->call(UtilisateurSeeder::class);
-        // $this->call([MatieresSeeder::class,]);
-        // $this->call(FinanceCategorySeeder::class);
-        
+         //$this->call([MatieresSeeder::class,]);
+         //$this->call(FinanceCategorySeeder::class);
+
 }
 }

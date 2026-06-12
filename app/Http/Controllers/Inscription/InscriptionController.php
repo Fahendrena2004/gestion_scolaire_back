@@ -218,6 +218,7 @@ class InscriptionController extends Controller
                 'date_inscription'  => now(),
                 'parascolaire'      => $request->boolean('parascolaire'),
                 'cantine'           => $request->boolean('cantine'),
+                'description_frais' => $request->input('description_frais'),
                 'montant_total'     => 0,
                 'montant_net'       => 0,
                 'utilisateur_id'    => $utilisateurId,

@@ -183,7 +183,7 @@ class ReinscriptionController extends Controller
                 $niveauCibleId++;
             }
             $classeCible = $this->trouverClasseDisponible($niveauCibleId, $anneeScolaire->id);
-            
+
             if (!$classeCible) {
                 return response()->json([
                     'message' => 'Aucune classe disponible pour le niveau cible. Veuillez contacter l administrateur.',
@@ -221,6 +221,7 @@ class ReinscriptionController extends Controller
                 'date_inscription' => $request->date_reinscription,
                 'parascolaire' => $request->boolean('parascolaire'),
                 'cantine' => $request->boolean('cantine'),
+                'description_frais' => $request->input('description_frais'),
                 'montant_total' => 0,
                 'montant_net' => 0,
                 'utilisateur_id' => Auth::id(),

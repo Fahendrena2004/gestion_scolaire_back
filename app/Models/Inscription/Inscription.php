@@ -22,6 +22,7 @@ class Inscription extends Model
         'montant_net',
         'parascolaire',
         'cantine',
+        'description_frais',
         'date_inscription',
         'utilisateur_id',
     ];

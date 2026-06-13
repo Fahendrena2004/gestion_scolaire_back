@@ -325,7 +325,7 @@ class ReinscriptionController extends Controller
         return response()->json($reinscriptions);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
         $reinscription = Reinscription::with([
             'eleve',
@@ -345,7 +345,7 @@ class ReinscriptionController extends Controller
         return response()->json($reinscription);
     }
 
-    public function updatePaiement($id)
+    public function updatePaiement(int $id)
     {
         $reinscription = Reinscription::find($id);
 
@@ -361,7 +361,7 @@ class ReinscriptionController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         $reinscription = Reinscription::find($id);
 
@@ -477,16 +477,39 @@ class ReinscriptionController extends Controller
         }
 
         if ($montantRestant > 0) {
-            Paiement::create([
+            $paiementScolarite = Paiement::create([
                 'reference' => $this->genererReferencePaiement(),
                 'inscription_id' => $inscription->id,
-                'type' => 'avance',
-                'libelle' => 'Avance inscription',
+                'type' => 'scolarite_mensuelle',
+                'libelle' => 'Avance scolarite',
                 'details' => null,
                 'montant' => $montantRestant,
                 'date_paiement' => now(),
                 'utilisateur_id' => $userId,
             ]);
+
+            // Allouer le montant aux mois de scolarité
+            $typeFraisScolarite = $this->getTypeFrais($this->getLibelleScolarite($inscription->classe->niveau->cycle), $inscription->id_annee_scolaire);
+            $montantMensuel = $typeFraisScolarite ? (float) $typeFraisScolarite->montant : 0;
+            
+            if ($montantMensuel > 0) {
+                $anneeScolaire = $inscription->anneeScolaire;
+                $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
+                $currentDate = \Carbon\Carbon::parse($dateDebutStr)->startOfMonth();
+                
+                $montantAlloue = 0;
+                while (($montantRestant - $montantAlloue) >= ($montantMensuel - 0.01)) {
+                    \App\Models\Paiement\PaiementMensuel::create([
+                        'resume_id' => $resume->id,
+                        'mois' => $currentDate->month,
+                        'annee' => $currentDate->year,
+                        'montant' => $montantMensuel,
+                        'paiement_id' => $paiementScolarite->id,
+                    ]);
+                    $montantAlloue += $montantMensuel;
+                    $currentDate->addMonth();
+                }
+            }
         }
 
         // --- INTEGRATION FINANCE ---

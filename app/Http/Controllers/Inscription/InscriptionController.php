@@ -463,6 +463,56 @@ class InscriptionController extends Controller
         }
     }
 
+    public function destroy(int $id)
+    {
+        DB::beginTransaction();
+        try {
+            $inscription = Inscription::find($id);
+
+            if (!$inscription) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Inscription non trouvee',
+                ], 404);
+            }
+
+            $classe = Classe::find($inscription->id_classe);
+            if ($classe && $classe->effectif > 0) {
+                $classe->decrement('effectif');
+            }
+
+            // Supprimer les résumés et paiements liés pour éviter les erreurs de clés étrangères
+            $inscription->fraisAppliques()->delete();
+            
+            $resume = $inscription->resumePaiement()->first();
+            if ($resume) {
+                $resume->paiementsMensuels()->delete();
+                $resume->delete();
+            }
+
+            $inscription->paiements()->each(function ($paiement) {
+                $paiement->recu()->delete();
+                $paiement->delete();
+            });
+
+            $inscription->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inscription supprimee avec succes',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getDynamicInfos(int $id)
     {
         $inscription = Inscription::with('eleve.infosDynamiques')->find($id);

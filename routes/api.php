@@ -323,6 +323,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('finance')->group(function () {
             // Routes accessibles à l'Admin ET au Caissier
             Route::get('/categories', [FinanceController::class, 'getCategories']);
+            Route::post('/categories/store', [FinanceController::class, 'storeCategorie']);
             Route::post('/entrees', [FinanceController::class, 'storeEntree']);
             Route::post('/sorties', [FinanceController::class, 'storeSortie']);
 

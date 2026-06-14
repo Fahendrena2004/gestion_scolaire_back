@@ -242,6 +242,16 @@ class ReinscriptionController extends Controller
             if ($montantVerse > 0) {
                 $this->enregistrerPaiementInitial($nouvelleInscription, $resume, $montantVerse, Auth::id());
                 $resume->refresh();
+// Update reste_avancement for the new inscription
+$totalPaye = (float) Paiement::where('inscription_id', $nouvelleInscription->id)->sum('montant');
+$montantRestant = $nouvelleInscription->montant_net - $totalPaye;
+$nouvelleInscription->resteAvancements()->updateOrCreate(
+    [], // single record per inscription
+    [
+        'montant_rest' => $montantRestant,
+        'statut' => $montantRestant <= 0 ? 'payé' : 'impayé',
+    ]
+);
             }
 
             $reinscription = Reinscription::create([
@@ -335,6 +345,7 @@ class ReinscriptionController extends Controller
             'nouvelleInscription.classe.niveau',
             'nouvelleInscription.anneeScolaire',
             'nouvelleInscription.resumePaiement',
+            'nouvelleInscription.resteAvancements',
             'utilisateur',
         ])->find($id);
 
@@ -495,7 +506,7 @@ class ReinscriptionController extends Controller
             if ($montantMensuel > 0) {
                 $anneeScolaire = $inscription->anneeScolaire;
                 $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
-                $currentDate = \Carbon\Carbon::parse($dateDebutStr)->startOfMonth();
+                $currentDate = Carbon::parse($dateDebutStr)->startOfMonth();
                 
                 $montantAlloue = 0;
                 while (($montantRestant - $montantAlloue) >= ($montantMensuel - 0.01)) {

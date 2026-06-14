@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Utilisateur;
 use App\Models\Paiement\PresenceCantine;
 use App\Models\Paiement\ResumePaiement;
+use App\Models\Inscription\ResteAvancement;
 class Inscription extends Model
 {
     protected $table = 'inscriptions';
@@ -54,6 +55,12 @@ class Inscription extends Model
     public function paiements()
     {
         return $this->hasMany(Paiement::class, 'inscription_id');
+    }
+
+    // New relationship to track payment progress
+    public function resteAvancements()
+    {
+        return $this->hasMany(ResteAvancement::class, 'inscription_id');
     }
 
 

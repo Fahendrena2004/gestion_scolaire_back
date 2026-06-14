@@ -490,8 +490,10 @@ class InscriptionController extends Controller
                 $resume->delete();
             }
 
-            $inscription->paiements()->each(function ($paiement) {
-                $paiement->recu()->delete();
+            $inscription->paiements->each(function ($paiement) {
+                if ($paiement->recu) {
+                    $paiement->recu()->delete();
+                }
                 $paiement->delete();
             });
 
@@ -719,7 +721,7 @@ class InscriptionController extends Controller
             if ($montantMensuel > 0) {
                 $anneeScolaire = $inscription->anneeScolaire;
                 $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
-                $currentDate = \Carbon\Carbon::parse($dateDebutStr)->startOfMonth();
+                $currentDate = Carbon::parse($dateDebutStr)->startOfMonth();
                 
                 $montantAlloue = 0;
                 while (($montantRestant - $montantAlloue) >= ($montantMensuel - 0.01)) {

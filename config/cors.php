@@ -27,6 +27,7 @@ return [
         'https://edunovam.vercel.app',
         'https://edunova-pied.vercel.app',
         'https://edunova.mg',
+        'https://www.edunova.mg',
         'https://api.edunova.mg',
         'https://localhost:8000',
         'http://localhost:8000',

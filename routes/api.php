@@ -224,6 +224,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/', [InscriptionController::class, 'store']);
             Route::get('/{id}', [InscriptionController::class, 'show']);
             Route::put('/{id}', [InscriptionController::class, 'update']);
+            Route::delete('/{id}', [InscriptionController::class, 'destroy']);
             Route::get('/{id}/infos-dynamiques', [InscriptionController::class, 'getDynamicInfos']);
 
             // Paiements d'une inscription

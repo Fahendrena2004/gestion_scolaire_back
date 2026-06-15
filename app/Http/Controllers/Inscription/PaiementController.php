@@ -110,6 +110,7 @@ class PaiementController extends Controller
                 'success' => true,
                 'message' => 'Paiement enregistre',
                 'data' => $paiement->load(['utilisateur', 'typeFrais', 'recu']),
+                'reste_avancement' => $inscription->resteAvancements()->orderBy('id', 'desc')->first(),
             ], 201);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -159,6 +160,7 @@ class PaiementController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Paiement supprime',
+                'reste_avancement' => $inscription->resteAvancements()->orderBy('id', 'desc')->first(),
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();

@@ -35,7 +35,6 @@ return [
 
     'allowed_origins_patterns' => [
         '/^https:\/\/.*\.vercel\.app$/',
-        '/^https:\/\/(www\.)?edunova\.mg$/',
     ],
 
     'allowed_headers' => ['*'],

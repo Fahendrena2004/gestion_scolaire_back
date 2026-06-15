@@ -13,11 +13,17 @@ class TypeFrais extends Model
         'libelle',
         'montant',
         'est_obligatoire',
+        'target_type',
+        'target_value',
+        'frequence',
+        'categorie',
+        'ordre_affichage',
     ];
 
     protected $casts = [
         'montant' => 'decimal:2',
         'est_obligatoire' => 'boolean',
+        'ordre_affichage' => 'integer',
     ];
 
     public function anneeScolaire()

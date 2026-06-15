@@ -7,6 +7,7 @@ use App\Models\Inscription\AnneeScolaire;
 use App\Models\Inscription\TypeFrais;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class FraisController extends Controller
 {
@@ -14,9 +15,10 @@ class FraisController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'cycle'        => 'required|string',
-                'parascolaire' => 'sometimes',
-                'cantine'      => 'sometimes',
+                'cycle'   => 'required|string',
+                'niveau'  => 'required|string',
+                'serie'   => 'nullable|string',
+                'options' => 'nullable|array',
             ]);
 
             if ($validator->fails()) {
@@ -26,120 +28,82 @@ class FraisController extends Controller
             $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
 
             if (!$anneeScolaire) {
-                return response()->json(['success' => false, 'message' => 'Aucune année scolaire active.'], 404);
+                return response()->json(['success' => false, 'message' => 'Aucune annee scolaire active.'], 404);
             }
 
-            $cycle        = $request->input('cycle');
-            $niveau       = $request->input('niveau', '');
-            $parascolaire = $request->input('parascolaire') == 1 || $request->input('parascolaire') === 'true';
-            $cantine      = $request->input('cantine') == 1 || $request->input('cantine') === 'true';
+            // Calcul du nombre de mois scolaires
+            $dateDebut = Carbon::parse($anneeScolaire->date_debut);
+            $dateFin = Carbon::parse($anneeScolaire->date_fin);
+            $nombreMoisScolaires = $dateDebut->diffInMonths($dateFin);
+            if ($nombreMoisScolaires <= 0) $nombreMoisScolaires = 10; // Fallback
 
-            $frais = [];
+            $cycle = strtolower($request->input('cycle'));
+            $niveau = strtolower($request->input('niveau'));
+            $options = $request->input('options', []); // ex: ['12' => true, '15' => false]
 
-            // 1. Inscription
-            $frais[] = $this->getTypeFrais('Inscription', $anneeScolaire->id, $cycle, $niveau);
-
-            // 2. Scolarité (Recherche flexible)
-            $libelleScolarite = 'Scolarité';
-            if ($cycle == 'primaire') $libelleScolarite = 'Scolarité - Primaire';
-            else if ($cycle == 'college') $libelleScolarite = 'Scolarité - Collège';
-            else if ($cycle == 'lycee') $libelleScolarite = 'Scolarité - Lycée';
-
-            $frais[] = $this->getTypeFrais($libelleScolarite, $anneeScolaire->id, $cycle, $niveau);
-
-            // 3. Frais technologiques
-            $frais[] = $this->getTypeFrais('Frais technologiques', $anneeScolaire->id, $cycle, $niveau);
-
-            // 4. Options
-            if ($parascolaire) $frais[] = $this->getTypeFrais('Parascolaire', $anneeScolaire->id, $cycle, $niveau);
-            if ($cantine) $frais[] = $this->getTypeFrais('Cantine', $anneeScolaire->id, $cycle, $niveau);
-
-            // 5. Autres frais actifs de l'année scolaire (ex: Transport) qui ne sont pas déjà inclus
-            $allTypeFrais = TypeFrais::where('annee_scolaire_id', $anneeScolaire->id)
-                ->orWhereNull('annee_scolaire_id')
+            // On recupere tous les frais de l'annee
+            $allFrais = TypeFrais::where('annee_scolaire_id', $anneeScolaire->id)
+                ->orderBy('ordre_affichage', 'asc')
                 ->get();
 
-            $includedIds = [];
-            foreach ($frais as $f) {
-                if ($f) $includedIds[] = $f->id;
-            }
+            $fraisCibles = [];
+            $totalFixe = 0;
 
-            foreach ($allTypeFrais as $tf) {
-                if (!in_array($tf->id, $includedIds)) {
-                    $low = strtolower($tf->libelle);
+            foreach ($allFrais as $frais) {
+                $isTargeted = false;
 
-                    // On exclut les scolarités (déjà gérées)
-                    if (str_contains($low, 'scolarit') || str_contains($low, 'ecolage') || str_contains($low, 'mensualit') || str_contains($low, 'mensuel') || str_contains($low, 'pension')) {
-                        continue;
-                    }
-
-                    // On exclut les frais destinés spécifiquement à d'autres cycles
-                    $otherCycles = ['maternelle', 'primaire', 'college', 'collège', 'lycee', 'lycée', 'creche', 'crèche', 'prescolaire', 'préscolaire'];
-
-                    // Retirer le cycle actuel de la liste des mots à exclure
-                    $currentCycleLow = strtolower($cycle);
-                    // Normaliser pour la comparaison
-                    $normalizedCycle = str_replace(['é', 'è'], ['e', 'e'], $currentCycleLow);
-
-                    $shouldExclude = false;
-                    foreach ($otherCycles as $other) {
-                        $normalizedOther = str_replace(['é', 'è'], ['e', 'e'], $other);
-                        if ($normalizedOther !== $normalizedCycle && str_contains($low, $other)) {
-                            // S'il contient explicitement le nom d'un AUTRE cycle, on l'exclut !
-                            $shouldExclude = true;
-                            break;
-                        }
-                    }
-
-                    // On exclut les frais destinés spécifiquement à un AUTRE niveau
-                    if (!empty($niveau) && str_contains($low, ' - ')) {
-                        $parts = array_map('trim', explode('-', strtolower($tf->libelle)));
-                        if (count($parts) >= 3) {
-                            $targetNiveau = end($parts);
-                            // Si le niveau cible est différent du niveau actuel, on l'exclut
-                            if (!str_contains(strtolower($niveau), $targetNiveau) && !str_contains($targetNiveau, strtolower($niveau))) {
-                                $shouldExclude = true;
-                            }
-                        } else if (count($parts) == 2) {
-                            // Si le format est "Droit d'inscription - CP1"
-                            $targetNiveau = end($parts);
-                            // On s'assure d'abord que le "targetNiveau" n'est pas simplement le nom du cycle ("Primaire")
-                            if (!str_contains($normalizedCycle, str_replace(['é', 'è'], ['e', 'e'], $targetNiveau)) && !str_contains(str_replace(['é', 'è'], ['e', 'e'], $targetNiveau), $normalizedCycle)) {
-                                if (!str_contains(strtolower($niveau), $targetNiveau) && !str_contains($targetNiveau, strtolower($niveau))) {
-                                    $shouldExclude = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if ($shouldExclude) {
-                        continue;
-                    }
-
-                    $frais[] = $tf;
-                    $includedIds[] = $tf->id;
+                // Verifier le ciblage
+                if ($frais->target_type === 'general') {
+                    $isTargeted = true;
+                } elseif ($frais->target_type === 'cycle' && strtolower($frais->target_value) === $cycle) {
+                    $isTargeted = true;
+                } elseif ($frais->target_type === 'niveau' && strtolower($frais->target_value) === $niveau) {
+                    $isTargeted = true;
                 }
-            }
 
-            // Nettoyage des résultats (filtre les null)
-            $finalFrais = [];
-            foreach ($frais as $f) {
-                if ($f) $finalFrais[] = $f;
-            }
+                if ($isTargeted) {
+                    $isSelectionne = $frais->est_obligatoire;
 
-            $total = 0;
-            foreach ($finalFrais as $item) {
-                $total += (float) $item->montant;
+                    // Si c'est optionnel, verifier si l'utilisateur l'a coché
+                    if (!$frais->est_obligatoire && is_array($options) && isset($options[$frais->id])) {
+                        if ($options[$frais->id] == 1 || $options[$frais->id] === 'true' || $options[$frais->id] === true) {
+                            $isSelectionne = true;
+                        }
+                    }
+
+                    $montantTotal = $frais->montant;
+                    if ($frais->frequence === 'mensuel') {
+                        $montantTotal = $frais->montant * $nombreMoisScolaires;
+                    }
+
+                    $fraisCibles[] = [
+                        'id' => $frais->id,
+                        'libelle' => $frais->libelle,
+                        'montant_base' => $frais->montant,
+                        'frequence' => $frais->frequence,
+                        'montant_total' => $montantTotal,
+                        'categorie' => $frais->categorie,
+                        'est_obligatoire' => $frais->est_obligatoire,
+                        'est_applique' => $isSelectionne,
+                        'original_frais' => $frais // Utile pour appliquerFrais
+                    ];
+
+                    if ($isSelectionne) {
+                        $totalFixe += $montantTotal;
+                    }
+                }
             }
 
             return response()->json([
                 'success' => true,
                 'data'    => [
-                    'details'      => $finalFrais,
-                    'total_fixe'   => $total,
+                    'details'      => $fraisCibles,
+                    'total_fixe'   => $totalFixe,
                     'cycle'        => $cycle,
-                    'annee_active' => $anneeScolaire->libelle,
+                    'annee_active' => $anneeScolaire->libelle ?? ($dateDebut->format('Y') . '-' . $dateFin->format('Y')),
+                    'nombre_mois'  => $nombreMoisScolaires
                 ],
+                'message' => 'Calcul des frais effectue avec succes'
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -149,107 +113,37 @@ class FraisController extends Controller
         }
     }
 
-    private function getTypeFrais($libelle, $anneeId, $cycle = '', $niveau = '')
+    public function getFraisByTarget(Request $request)
     {
-        $query = TypeFrais::query();
+        $anneeScolaire = AnneeScolaire::where('statut', 'en_cours')->first();
+        if (!$anneeScolaire) {
+            return response()->json(['success' => false, 'message' => 'Aucune annee scolaire active.'], 404);
+        }
 
-        $query->where(function ($q) use ($libelle) {
-            $q->where('libelle', $libelle)
-              ->orWhere('libelle', 'like', '%' . $libelle . '%');
+        $query = TypeFrais::where('annee_scolaire_id', $anneeScolaire->id);
 
-            if (str_contains($libelle, 'Scolarité')) {
-                $base = trim(str_replace(['Scolarité', '-'], '', $libelle));
-
-                $q->orWhere(function($sub) use ($base) {
-                    $sub->where(function($s) {
-                        $s->where('libelle', 'like', '%scolarit%')
-                          ->orWhere('libelle', 'like', '%ecolage%')
-                          ->orWhere('libelle', 'like', '%mensualit%')
-                          ->orWhere('libelle', 'like', '%mensuel%')
-                          ->orWhere('libelle', 'like', '%pension%');
-                    });
-                    if (!empty($base)) {
-                        $sub->where('libelle', 'like', '%' . $base . '%');
-                    }
-                });
-            }
-
-            if (str_contains(strtolower($libelle), 'inscription')) {
-                $q->orWhere('libelle', 'like', '%inscription%');
-            }
-            if (str_contains(strtolower($libelle), 'cantine')) {
-                $q->orWhere('libelle', 'like', '%cantine%');
-            }
-            if (str_contains(strtolower($libelle), 'parascolaire')) {
-                $q->orWhere('libelle', 'like', '%parascolaire%')
-                  ->orWhere('libelle', 'like', '%para-scolaire%')
-                  ->orWhere('libelle', 'like', '%para scolaire%');
-            }
-        });
-
-        if ($anneeId) {
-            $query->where(function ($q) use ($anneeId) {
-                $q->where('annee_scolaire_id', $anneeId)
-                  ->orWhereNull('annee_scolaire_id');
+        if ($request->has('cycle') && $request->input('cycle')) {
+            $cycle = strtolower($request->input('cycle'));
+            $query->where(function($q) use ($cycle) {
+                $q->where('target_type', 'general')
+                  ->orWhere(function($sub) use ($cycle) {
+                      $sub->where('target_type', 'cycle')->where('target_value', 'like', "%$cycle%");
+                  });
             });
-        } else {
-            $query->whereNull('annee_scolaire_id');
         }
 
-        // Récupérer tous les résultats potentiels
-        $results = $query->orderByRaw('CASE WHEN annee_scolaire_id IS NOT NULL THEN 1 ELSE 0 END')->get();
-
-        // S'il y a plus d'un résultat, on filtre par cycle et niveau
-        if ($results->count() > 1 && (!empty($cycle) || !empty($niveau))) {
-            foreach ($results as $res) {
-                $low = strtolower($res->libelle);
-                $isTargetCycle = true;
-                $isTargetNiveau = true;
-
-                // Vérifier cycle
-                if (!empty($cycle)) {
-                    $normalizedCycle = str_replace(['é', 'è'], ['e', 'e'], strtolower($cycle));
-                    $otherCycles = ['maternelle', 'primaire', 'college', 'collège', 'lycee', 'lycée', 'creche', 'crèche', 'prescolaire', 'préscolaire'];
-                    foreach ($otherCycles as $other) {
-                        $normalizedOther = str_replace(['é', 'è'], ['e', 'e'], $other);
-                        if ($normalizedOther !== $normalizedCycle && str_contains($low, $other)) {
-                            $isTargetCycle = false;
-                            break;
-                        }
-                    }
-                    if (str_contains($low, $normalizedCycle)) {
-                        $isTargetCycle = true;
-                    }
-                }
-
-                // Vérifier niveau
-                if (!empty($niveau) && str_contains($low, ' - ')) {
-                    $parts = array_map('trim', explode('-', $low));
-
-                    if (count($parts) >= 3) {
-                        $targetNiveau = end($parts);
-                        $cleanTarget = trim(preg_replace('/\s*\([^)]*\)/', '', $targetNiveau));
-                        if (!empty($cleanTarget) && !str_contains(strtolower($niveau), $cleanTarget) && !str_contains($cleanTarget, strtolower($niveau))) {
-                            $isTargetNiveau = false;
-                        }
-                    } else if (count($parts) == 2) {
-                        $targetNiveau = end($parts);
-                        $cleanTarget = trim(preg_replace('/\s*\([^)]*\)/', '', $targetNiveau));
-
-                        if (!str_contains($normalizedCycle, str_replace(['é', 'è'], ['e', 'e'], $cleanTarget)) && !str_contains(str_replace(['é', 'è'], ['e', 'e'], $cleanTarget), $normalizedCycle)) {
-                            if (!str_contains(strtolower($niveau), $cleanTarget) && !str_contains($cleanTarget, strtolower($niveau))) {
-                                $isTargetNiveau = false;
-                            }
-                        }
-                    }
-                }
-
-                if ($isTargetCycle && $isTargetNiveau) {
-                    return $res; // Le match parfait
-                }
-            }
+        if ($request->has('niveau') && $request->input('niveau')) {
+            $niveau = strtolower($request->input('niveau'));
+            $query->orWhere(function($sub) use ($niveau) {
+                 $sub->where('target_type', 'niveau')->where('target_value', 'like', "%$niveau%");
+            });
         }
 
-        return $results->first();
+        $frais = $query->orderBy('ordre_affichage', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $frais
+        ]);
     }
 }

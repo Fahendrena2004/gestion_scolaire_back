@@ -53,18 +53,22 @@ class InstallController extends Controller
         }
 
         $niveaux = [
-            ['cycle' => 'primaire', 'nom_niveau' => 'CP'],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CE1'],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CE2'],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CM1'],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CM2'],
-            ['cycle' => 'college', 'nom_niveau' => '6eme'],
-            ['cycle' => 'college', 'nom_niveau' => '5eme'],
-            ['cycle' => 'college', 'nom_niveau' => '4eme'],
-            ['cycle' => 'college', 'nom_niveau' => '3eme'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Seconde'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale'],
+            ['cycle' => 'primaire', 'nom_niveau' => 'CP', 'serie' => null],
+            ['cycle' => 'primaire', 'nom_niveau' => 'CE1', 'serie' => null],
+            ['cycle' => 'primaire', 'nom_niveau' => 'CE2', 'serie' => null],
+            ['cycle' => 'primaire', 'nom_niveau' => 'CM1', 'serie' => null],
+            ['cycle' => 'primaire', 'nom_niveau' => 'CM2', 'serie' => null],
+            ['cycle' => 'college', 'nom_niveau' => '6eme', 'serie' => null],
+            ['cycle' => 'college', 'nom_niveau' => '5eme', 'serie' => null],
+            ['cycle' => 'college', 'nom_niveau' => '4eme', 'serie' => null],
+            ['cycle' => 'college', 'nom_niveau' => '3eme', 'serie' => null],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Seconde', 'serie' => null],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'S'],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'L'],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'OSE'],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'S'],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'L'],
+            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'OSE'],
         ];
 
         $created = [];
@@ -114,8 +118,9 @@ class InstallController extends Controller
             $nbDivisions = $this->getNombreDivisions($niveau->cycle, $niveau->nom_niveau);
 
             for ($i = 0; $i < $nbDivisions; $i++) {
+                $nomClasse = $niveau->nom_niveau . (!empty($niveau->serie) ? ' ' . $niveau->serie : '') . ' ' . $lettres[$i];
                 $classe = Classe::create([
-                    'nom_classe'      => $niveau->nom_niveau . ' ' . $lettres[$i],
+                    'nom_classe'      => $nomClasse,
                     'niveau_id'       => $niveau->id,
                     'code_division'   => $lettres[$i],
                     'effectif'        => 0,
@@ -145,7 +150,8 @@ class InstallController extends Controller
             $nomNiveau === '6eme' => 4,
             $nomNiveau === 'Seconde' => 4,
             $cycle === 'college' => 3,
-            $cycle === 'lycee' => 3,
+            $nomNiveau === 'Premiere' => 2,
+            $nomNiveau === 'Terminale' => 2,
             default => 2,
         };
     }

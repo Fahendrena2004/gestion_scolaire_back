@@ -677,14 +677,6 @@ class InscriptionController extends Controller
         $options = $request ? $request->input('options', []) : [];
         if (!is_array($options)) $options = [];
 
-        // Support backward compatibility
-        if ($request && $request->has('parascolaire') && $request->boolean('parascolaire')) {
-            $options['parascolaire'] = true;
-        }
-        if ($request && $request->has('cantine') && $request->boolean('cantine')) {
-            $options['cantine'] = true;
-        }
-
         $allFrais = TypeFrais::where('annee_scolaire_id', $anneeScolaire->id)->get();
         $dateDebut = Carbon::parse($anneeScolaire->date_debut);
         $dateFin = Carbon::parse($anneeScolaire->date_fin);
@@ -707,13 +699,6 @@ class InscriptionController extends Controller
 
                 if (!$frais->est_obligatoire) {
                     if (isset($options[$frais->id]) && ($options[$frais->id] == 1 || $options[$frais->id] === 'true' || $options[$frais->id] === true)) {
-                        $isSelectionne = true;
-                    }
-                    // Support legacy
-                    if (isset($options['parascolaire']) && str_contains(strtolower($frais->libelle), 'parascolaire')) {
-                        $isSelectionne = true;
-                    }
-                    if (isset($options['cantine']) && str_contains(strtolower($frais->libelle), 'cantine')) {
                         $isSelectionne = true;
                     }
                 }

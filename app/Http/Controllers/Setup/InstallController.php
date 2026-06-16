@@ -13,257 +13,160 @@ use Illuminate\Support\Facades\Validator;
 
 class InstallController extends Controller
 {
+    /**
+     * ÉTAPE 1 : Créer l'année scolaire (UNIQUEMENT)
+     * POST /api/setup/annee-scolaire
+     */
     public function createAnneeScolaire(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'date_debut' => 'required|date',
             'date_fin' => 'required|date|after:date_debut',
             'statut' => 'required|in:en_cours,termine,planifie',
+            'date_debut_inscription' => 'nullable|date',
+            'date_fin_inscription' => 'nullable|date|after_or_equal:date_debut_inscription',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Désactiver les autres années "en_cours"
         if ($request->statut === 'en_cours') {
             AnneeScolaire::where('statut', 'en_cours')->update(['statut' => 'termine']);
         }
 
-        $annee = AnneeScolaire::create($request->only(['date_debut', 'date_fin', 'statut']));
+        $annee = AnneeScolaire::create($request->only([
+            'date_debut', 
+            'date_fin', 
+            'statut',
+            'date_debut_inscription',
+            'date_fin_inscription'
+        ]));
 
         return response()->json([
             'success' => true,
-            'message' => 'Annee scolaire creee avec succes',
+            'message' => 'Année scolaire créée avec succès',
             'step' => 1,
-            'next_step' => '/api/setup/niveaux',
-            'data' => $annee,
-        ]);
+            'next_action' => 'configure_niveaux', // ← direction l'interface admin
+            'data' => [
+                'id' => $annee->id,
+                'libelle' => $annee->libelle,
+                'date_debut' => $annee->date_debut,
+                'date_fin' => $annee->date_fin,
+                'statut' => $annee->statut,
+                'est_inscription_ouverte' => $annee->est_inscription_ouverte,
+            ],
+        ], 201);
     }
 
-    public function createNiveaux(Request $request)
-    {
-        if (Niveau::count() > 0) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Les niveaux existent deja',
-                'step' => 2,
-                'next_step' => '/api/setup/classes',
-                'data' => Niveau::all(),
-            ]);
-        }
-
-        $niveaux = [
-            ['cycle' => 'primaire', 'nom_niveau' => 'CP', 'serie' => null],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CE1', 'serie' => null],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CE2', 'serie' => null],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CM1', 'serie' => null],
-            ['cycle' => 'primaire', 'nom_niveau' => 'CM2', 'serie' => null],
-            ['cycle' => 'college', 'nom_niveau' => '6eme', 'serie' => null],
-            ['cycle' => 'college', 'nom_niveau' => '5eme', 'serie' => null],
-            ['cycle' => 'college', 'nom_niveau' => '4eme', 'serie' => null],
-            ['cycle' => 'college', 'nom_niveau' => '3eme', 'serie' => null],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Seconde', 'serie' => null],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'S'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'L'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Premiere', 'serie' => 'OSE'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'S'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'L'],
-            ['cycle' => 'lycee', 'nom_niveau' => 'Terminale', 'serie' => 'OSE'],
-        ];
-
-        $created = [];
-
-        foreach ($niveaux as $niveau) {
-            $created[] = Niveau::create($niveau);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => count($created) . ' niveaux crees avec succes',
-            'step' => 2,
-            'next_step' => '/api/setup/classes',
-            'data' => $created,
-        ]);
-    }
-
-    public function generateClasses(Request $request)
-    {
-        $anneeActive = AnneeScolaire::where('statut', 'en_cours')->first();
-
-        if (!$anneeActive) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucune annee scolaire active.',
-                'step' => 1,
-                'required_step' => '/api/setup/annee-scolaire',
-            ], 400);
-        }
-
-        if (Classe::count() > 0) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Les classes existent deja',
-                'step' => 3,
-                'next_step' => '/api/setup/frais',
-                'data' => Classe::with('niveau')->get(),
-            ]);
-        }
-
-        $niveaux = Niveau::all();
-        $lettres = ['A', 'B', 'C', 'D'];
-        $created = [];
-        $totalClasses = 0;
-
-        foreach ($niveaux as $niveau) {
-            $nbDivisions = $this->getNombreDivisions($niveau->cycle, $niveau->nom_niveau);
-
-            for ($i = 0; $i < $nbDivisions; $i++) {
-                $nomClasse = $niveau->nom_niveau . (!empty($niveau->serie) ? ' ' . $niveau->serie : '') . ' ' . $lettres[$i];
-                $classe = Classe::create([
-                    'nom_classe'      => $nomClasse,
-                    'niveau_id'       => $niveau->id,
-                    'code_division'   => $lettres[$i],
-                    'effectif'        => 0,
-                    'max_effectif'    => 50,
-                    'anneeScolaire_id' => $anneeActive->id,
-                ]);
-
-                $created[] = $classe;
-                $totalClasses++;
-            }
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => $totalClasses . ' classes generees automatiquement',
-            'step' => 3,
-            'next_step' => '/api/setup/frais',
-            'annee_scolaire' => $anneeActive,
-            'data' => $created,
-        ]);
-    }
-
-    private function getNombreDivisions(string $cycle, string $nomNiveau): int
-    {
-        return match (true) {
-            $cycle === 'primaire' => 2,
-            $nomNiveau === '6eme' => 4,
-            $nomNiveau === 'Seconde' => 4,
-            $cycle === 'college' => 3,
-            $nomNiveau === 'Premiere' => 2,
-            $nomNiveau === 'Terminale' => 2,
-            default => 2,
-        };
-    }
-
-    public function createTypeFrais(Request $request)
-    {
-        $anneeActive = AnneeScolaire::where('statut', 'en_cours')->first();
-
-        if (!$anneeActive) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Aucune annee scolaire active.',
-            ], 400);
-        }
-
-        if (TypeFrais::where('annee_scolaire_id', $anneeActive->id)->exists()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Les types de frais de cette annee existent deja',
-                'step' => 4,
-                'next_step' => '/api/setup/matieres',
-                'data' => TypeFrais::where('annee_scolaire_id', $anneeActive->id)->get(),
-            ]);
-        }
-
-        $frais = [
-            ['libelle' => 'Inscription', 'montant' => 75000, 'est_obligatoire' => true],
-            ['libelle' => 'Scolarité - Primaire', 'montant' => 350000, 'est_obligatoire' => true],
-            ['libelle' => 'Scolarité - Collège', 'montant' => 450000, 'est_obligatoire' => true],
-            ['libelle' => 'Scolarité - Lycée', 'montant' => 550000, 'est_obligatoire' => true],
-            ['libelle' => 'Frais technologiques', 'montant' => 15000, 'est_obligatoire' => true],
-            ['libelle' => 'Parascolaire', 'montant' => 50000, 'est_obligatoire' => false],
-            ['libelle' => 'Sports', 'montant' => 45000, 'est_obligatoire' => false],
-            ['libelle' => 'Cantine', 'montant' => 75000, 'est_obligatoire' => false],
-        ];
-
-        $created = [];
-
-        foreach ($frais as $f) {
-            $created[] = TypeFrais::create([
-                'annee_scolaire_id' => $anneeActive->id,
-                'libelle' => $f['libelle'],
-                'montant' => $f['montant'],
-                'est_obligatoire' => $f['est_obligatoire'],
-            ]);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => count($created) . ' types de frais crees',
-            'step' => 4,
-            'next_step' => '/api/setup/matieres',
-            'data' => $created,
-        ]);
-    }
-
+    /**
+     * Vérifier l'état de l'installation
+     * GET /api/setup/status
+     */
     public function getStatus()
     {
         $anneeActive = AnneeScolaire::where('statut', 'en_cours')->first();
+        $anneeCount = AnneeScolaire::count();
+        
+        $hasNiveaux = Niveau::count() > 0;
+        $hasClasses = Classe::count() > 0;
+        $hasFrais = $anneeActive ? TypeFrais::where('annee_scolaire_id', $anneeActive->id)->count() > 0 : false;
+        $hasMatieres = Matieres::count() > 0;
 
-        $status = [
-            'annee_scolaire' => [
-                'exists' => AnneeScolaire::count() > 0,
-                'active' => $anneeActive,
-                'count' => AnneeScolaire::count(),
-            ],
-            'niveaux' => [
-                'exists' => Niveau::count() > 0,
-                'count' => Niveau::count(),
-            ],
-            'classes' => [
-                'exists' => Classe::count() > 0,
-                'count' => Classe::count(),
-            ],
-            'frais' => [
-                'exists' => $anneeActive ? TypeFrais::where('annee_scolaire_id', $anneeActive->id)->count() > 0 : false,
-                'count' => $anneeActive ? TypeFrais::where('annee_scolaire_id', $anneeActive->id)->count() : 0,
-            ],
-            'matieres' => [
-                'exists' => Matieres::count() > 0,
-                'count' => Matieres::count(),
-            ],
-        ];
-
-        if (!$status['annee_scolaire']['exists']) {
-            $status['next_step'] = '/api/setup/annee-scolaire';
-            $status['step'] = 1;
-        } elseif (!$status['niveaux']['exists']) {
-            $status['next_step'] = '/api/setup/niveaux';
-            $status['step'] = 2;
-        } elseif (!$status['classes']['exists']) {
-            $status['next_step'] = '/api/setup/classes';
-            $status['step'] = 3;
-        } elseif (!$status['frais']['exists']) {
-            $status['next_step'] = '/api/setup/frais';
-            $status['step'] = 4;
-        } elseif (!$status['matieres']['exists']) {
-            $status['next_step'] = '/api/setup/matieres';
-            $status['step'] = 5;
+        // Déterminer l'étape
+        if ($anneeCount === 0) {
+            $step = 1;
+            $message = "Aucune année scolaire. Veuillez en créer une.";
+            $nextAction = "create_annee";
+        } elseif (!$hasNiveaux) {
+            $step = 2;
+            $message = "Aucun niveau. Allez dans Configuration Scolaire → Structure pour ajouter des niveaux.";
+            $nextAction = "configure_niveaux";
+        } elseif (!$hasClasses) {
+            $step = 3;
+            $message = "Aucune classe. Allez dans Configuration Scolaire → Structure pour ajouter des classes.";
+            $nextAction = "configure_classes";
+        } elseif (!$hasFrais) {
+            $step = 4;
+            $message = "Aucun frais. Allez dans Configuration Scolaire → Frais pour configurer les tarifs.";
+            $nextAction = "configure_frais";
+        } elseif (!$hasMatieres) {
+            $step = 5;
+            $message = "Aucune matière. Allez dans Gestion des notes pour ajouter des matières.";
+            $nextAction = "configure_matieres";
         } else {
-            $status['next_step'] = null;
-            $status['step'] = 6;
-            $status['complete'] = true;
-            $status['message'] = 'Installation complete';
+            $step = 6;
+            $message = "Installation terminée ! Vous pouvez utiliser l'application.";
+            $nextAction = "complete";
         }
 
         return response()->json([
             'success' => true,
-            'status' => $status,
+            'status' => [
+                'step' => $step,
+                'message' => $message,
+                'next_action' => $nextAction,
+                'complete' => $step === 6,
+                'annee_scolaire' => [
+                    'exists' => $anneeCount > 0,
+                    'active' => $anneeActive,
+                    'count' => $anneeCount,
+                ],
+                'niveaux' => [
+                    'exists' => $hasNiveaux,
+                    'count' => Niveau::count(),
+                ],
+                'classes' => [
+                    'exists' => $hasClasses,
+                    'count' => Classe::count(),
+                ],
+                'frais' => [
+                    'exists' => $hasFrais,
+                    'count' => $anneeActive ? TypeFrais::where('annee_scolaire_id', $anneeActive->id)->count() : 0,
+                ],
+                'matieres' => [
+                    'exists' => $hasMatieres,
+                    'count' => Matieres::count(),
+                ],
+            ],
         ]);
     }
 
+    /**
+     * Récupérer l'année active
+     * GET /api/setup/active-annee
+     */
+    public function getActiveAnnee()
+    {
+        $annee = AnneeScolaire::where('statut', 'en_cours')->first();
+
+        if (!$annee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aucune année scolaire active',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $annee->id,
+                'libelle' => $annee->libelle,
+                'date_debut' => $annee->date_debut,
+                'date_fin' => $annee->date_fin,
+                'statut' => $annee->statut,
+                'date_debut_inscription' => $annee->date_debut_inscription,
+                'date_fin_inscription' => $annee->date_fin_inscription,
+                'est_inscription_ouverte' => $annee->est_inscription_ouverte,
+            ],
+        ]);
+    }
+
+    /**
+     * RESET - Supprimer TOUTES les données
+     * POST /api/setup/reset
+     */
     public function reset(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -277,6 +180,7 @@ class InstallController extends Controller
             ], 422);
         }
 
+        // Supprimer dans l'ordre inverse des dépendances
         Matieres::truncate();
         TypeFrais::truncate();
         Classe::truncate();
@@ -285,9 +189,9 @@ class InstallController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Toutes les donnees ont ete reinitialisees',
-            'next_step' => '/api/setup/annee-scolaire',
+            'message' => 'Toutes les données ont été réinitialisées',
             'step' => 1,
+            'next_action' => 'create_annee',
         ]);
     }
 }

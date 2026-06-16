@@ -28,24 +28,16 @@ class NiveauController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'cycle'      => 'required|in:primaire,college,lycee',
-            'nom_niveau' => 'required|unique:niveaux,nom_niveau',
+            'cycle'      => 'required|string',
+            'nom_niveau' => 'required|string',
+            'serie'      => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        // Ensure 'serie' is only set for 'premiere' or 'terminale' levels
-        $niveauNom = strtolower($request->input('nom_niveau'));
-        $allowedSeriesLevels = ['premiere', 'terminale'];
-        if ($request->filled('serie') && !in_array($niveauNom, $allowedSeriesLevels)) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['serie' => ['La série ne doit être définie que pour les niveaux Première ou Terminale.']]
-            ], 422);
-        }
-
+        // We allow any serie to be added dynamically without hardcoded level checks
 
         $niveau = Niveau::create($request->only(['cycle', 'nom_niveau', 'serie']));
 
@@ -69,24 +61,16 @@ class NiveauController extends Controller
         $niveau = Niveau::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'cycle'      => 'sometimes|in:primaire,college,lycee',
-            'nom_niveau' => 'sometimes|unique:niveaux,nom_niveau,' . $id,
-            'serie'      => 'nullable|in:S,L,OSE,Technique,D,C,A1,A2',
+            'cycle'      => 'sometimes|string',
+            'nom_niveau' => 'sometimes|string',
+            'serie'      => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        // Ensure 'serie' is only set for 'premiere' or 'terminale' levels
-        $niveauNom = strtolower($request->input('nom_niveau') ?? $niveau->nom_niveau);
-        $allowedSeriesLevels = ['premiere', 'terminale'];
-        if ($request->filled('serie') && !in_array($niveauNom, $allowedSeriesLevels)) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['serie' => ['La série ne doit être définie que pour les niveaux Première ou Terminale.']]
-            ], 422);
-        }
+        // We allow any serie to be added dynamically without hardcoded level checks
 
         $niveau->update($request->only(['cycle', 'nom_niveau', 'serie']));
 

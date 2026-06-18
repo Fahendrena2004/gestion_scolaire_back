@@ -193,53 +193,85 @@ class RecapitulatifAnneeScolaireController extends Controller
 
             $effectif = $inscriptions->count();
 
-            // Statistiques par trimestre
-            $trimestres = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
-            $statsTrimestres = collect($trimestres)->map(function ($trimestre) use ($inscriptions) {
+            // ⚠️ Les périodes en DB sont TRIMESTRE_1, TRIMESTRE_2, TRIMESTRE_3
+            $periodes = ['TRIMESTRE_1', 'TRIMESTRE_2', 'TRIMESTRE_3'];
+            $statsTrimestres = collect($periodes)->map(function ($periode) use ($inscriptions) {
                 $bulletins = Bulletin::whereIn('inscription_id', $inscriptions)
-                    ->where('periode', $trimestre)
+                    ->where('periode', $periode)
                     ->get();
 
-                $moyenneClasse = $bulletins->avg('moyenne_eleve');
-                $nombreAdmis = $bulletins->where('moyenne_eleve', '>=', 10)->count();
-                $tauxReussite = $bulletins->count() > 0 ? round(($nombreAdmis / $bulletins->count()) * 100, 2) : 0;
+                $moyenneClasse = $bulletins->avg('moyenne_eleve') ?? 0;
+                $nombreAdmis   = $bulletins->where('moyenne_eleve', '>=', 10)->count();
+                $tauxReussite  = $bulletins->count() > 0
+                    ? round(($nombreAdmis / $bulletins->count()) * 100, 2)
+                    : 0;
 
                 return [
-                    'trimestre' => $trimestre,
-                    'moyenne_classe' => round($moyenneClasse, 2),
-                    'taux_reussite' => $tauxReussite,
-                    'nombre_bulletins' => $bulletins->count()
+                    'trimestre'       => $periode,
+                    'moyenne_classe'  => round($moyenneClasse, 2),
+                    'taux_reussite'   => $tauxReussite,
+                    'nombre_bulletins'=> $bulletins->count(),
                 ];
             });
 
-            // Calculer la moyenne annuelle (moyenne des moyennes des trimestres)
-            $moyenneAnnuelle = $statsTrimestres->avg('moyenne_classe');
-            
-            // Taux de réussite global (basé sur la moyenne annuelle >= 10 ou moyenne des taux)
-            $tauxReussiteGlobal = $statsTrimestres->avg('taux_reussite');
+            // Moyenne annuelle = moyenne des trimestres ayant des bulletins
+            $trimestresAvecDonnees = $statsTrimestres->filter(fn($t) => $t['nombre_bulletins'] > 0);
+            $moyenneAnnuelle = $trimestresAvecDonnees->count() > 0
+                ? $trimestresAvecDonnees->avg('moyenne_classe')
+                : 0;
+
+            $tauxReussiteGlobal = $trimestresAvecDonnees->count() > 0
+                ? $trimestresAvecDonnees->avg('taux_reussite')
+                : 0;
 
             return [
-                'id' => $classe->id,
-                'nom' => $classe->nom_classe,
-                'effectif' => $effectif,
-                'moyenne_annuelle' => round($moyenneAnnuelle, 2),
-                't1' => $statsTrimestres->where('trimestre', 'Trimestre 1')->first()['moyenne_classe'] ?? 0,
-                't2' => $statsTrimestres->where('trimestre', 'Trimestre 2')->first()['moyenne_classe'] ?? 0,
-                't3' => $statsTrimestres->where('trimestre', 'Trimestre 3')->first()['moyenne_classe'] ?? 0,
-                'taux_reussite' => round($tauxReussiteGlobal, 2),
-                'statistiques_trimestres' => $statsTrimestres
+                'id'              => $classe->id,
+                'nom'             => $classe->nom_classe,
+                'effectif'        => $effectif,
+                'moyenne_annuelle'=> round($moyenneAnnuelle, 2),
+                't1'              => $statsTrimestres->firstWhere('trimestre', 'TRIMESTRE_1')['moyenne_classe'] ?? 0,
+                't2'              => $statsTrimestres->firstWhere('trimestre', 'TRIMESTRE_2')['moyenne_classe'] ?? 0,
+                't3'              => $statsTrimestres->firstWhere('trimestre', 'TRIMESTRE_3')['moyenne_classe'] ?? 0,
+                'taux_reussite'   => round($tauxReussiteGlobal, 2),
+                'statistiques_trimestres' => $statsTrimestres,
             ];
+        });
+
+        // Top 5 élèves (meilleure moyenne annuelle)
+        $allInscriptions = Inscription::where('id_annee_scolaire', $annee->id)
+            ->when($classeId, fn($q) => $q->where('id_classe', $classeId))
+            ->with(['eleve', 'classe'])
+            ->get();
+
+        $topStudents = $allInscriptions->map(function ($ins) {
+            $bulletins = Bulletin::where('inscription_id', $ins->id)->get();
+            $periodesDispo = $bulletins->groupBy('periode')->count();
+            $moyenne = $periodesDispo > 0
+                ? round($bulletins->avg('moyenne_eleve'), 2)
+                : 0;
+            return [
+                'name'    => ($ins->eleve->nom ?? '') . ' ' . ($ins->eleve->prenom ?? ''),
+                'moyenne' => $moyenne,
+                'rang'    => 0,
+                'classe'  => $ins->classe->nom_classe ?? '',
+            ];
+        })
+        ->filter(fn($s) => $s['moyenne'] > 0)
+        ->sortByDesc('moyenne')
+        ->values()
+        ->take(5)
+        ->map(function ($s, $i) {
+            $s['rang'] = $i + 1;
+            return $s;
         });
 
         return response()->json([
             'success' => true,
             'data' => [
-                'annee_scolaire' => [
-                    'id' => $annee->id,
-                    'libelle' => $annee->libelle,
-                ],
-                'classes' => $resultatsClasses,
-                'total_eleves' => $resultatsClasses->sum('effectif')
+                'annee_scolaire'  => ['id' => $annee->id, 'libelle' => $annee->libelle],
+                'classes'         => $resultatsClasses,
+                'total_eleves'    => $resultatsClasses->sum('effectif'),
+                'top_students'    => $topStudents,
             ],
         ]);
     }
@@ -474,19 +506,30 @@ class RecapitulatifAnneeScolaireController extends Controller
                 }
 
                 return [
-                    'id' => $ins->eleve->id,
-                    'matricule' => $ins->eleve->matricule,
-                    'nom' => $ins->eleve->nom,
-                    'prenom' => $ins->eleve->prenom,
-                    'classe_nom' => $ins->classe->nom_classe,
+                    'id'              => $ins->eleve->id,
+                    'matricule'       => $ins->eleve->matricule,
+                    'nom'             => $ins->eleve->nom,
+                    'prenom'          => $ins->eleve->prenom,
+                    'classe_nom'      => $ins->classe->nom_classe,
+                    'classe'          => $ins->classe ? [
+                        'id'         => $ins->classe->id,
+                        'nom_classe' => $ins->classe->nom_classe,
+                    ] : null,
+                    'niveau'          => $ins->classe->niveau ? [
+                        'id'         => $ins->classe->niveau->id,
+                        'nom_niveau' => $ins->classe->niveau->nom_niveau,
+                        'cycle'      => $ins->classe->niveau->cycle,
+                        'serie'      => $ins->classe->niveau->serie ?? null,
+                    ] : null,
+                    'serie'           => $ins->classe->niveau->serie ?? null,
                     'statut_paiement' => $statusPaye,
-                    'moyenne' => round($moyenneGeneral, 2)
+                    'moyenne'         => round($moyenneGeneral, 2),
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'data' => $inscriptions
+            'data'    => $inscriptions
         ]);
     }
 }

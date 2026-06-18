@@ -280,14 +280,26 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/{id}', [NotesController::class, 'destroy']);
         });
 
-        // ─── BULLETINS ────────────────────────────────────────────────────────
+        // ─── BULLETINS TRIMESTRIELS ───────────────────────────────────────────
         Route::prefix('bulletins')->group(function () {
             Route::post('/generate', [BulletinController::class, 'generate']);
             Route::post('/generate-class', [BulletinController::class, 'generateForClass']);
             Route::get('/eleve/{inscriptionId}', [BulletinController::class, 'getByEleve']);
             Route::get('/classe', [BulletinController::class, 'getByClass']);
+            Route::get('/recapitulatif/pdf', [BulletinController::class, 'exportRecapitulatifPDF']);
             Route::get('/{id}', [BulletinController::class, 'show']);
             Route::get('/{id}/pdf', [BulletinController::class, 'exportPDF']);
+            Route::put('/{id}/appreciation', [BulletinController::class, 'updateAppreciation']);
+            Route::delete('/{id}', [BulletinController::class, 'destroy']);
+        });
+
+        // ─── BULLETINS ANNUELS ────────────────────────────────────────────────
+        Route::prefix('bulletins-annuels')->group(function () {
+            Route::post('/generate', [BulletinController::class, 'generateAnnuel']);
+            Route::post('/generate-individual', [BulletinController::class, 'generateAnnuelIndividuel']);
+            Route::get('/classe', [BulletinController::class, 'getAnnuelByClass']);
+            Route::get('/eleve/{inscriptionId}', [BulletinController::class, 'getAnnuelByEleve']);
+            Route::get('/{id}/pdf', [BulletinController::class, 'exportAnnuelPDF']);
         });
 
         // ─── DÉTAILS BULLETINS ────────────────────────────────────────────────

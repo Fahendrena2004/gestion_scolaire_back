@@ -215,22 +215,14 @@ class NotesController extends Controller
         }
     }
 
-    private function calculerAppreciation($valeur)
+    private function calculerAppreciation(float $valeur): string
     {
-        $v = (float)$valeur;
-        if ($v >= 0 && $v <= 5) {
-            return 'balme';
-        } elseif ($v >= 6 && $v <= 9) {
-            return 'Insuffisant';
-        } elseif ($v >= 10 && $v <= 12) {
-            return 'passable';
-        } elseif ($v >= 12 && $v <= 14) {
-            return 'Assez-bien';
-        } elseif ($v >= 15 && $v <= 16) {
-            return 'bien';
-        } else {
-            return 'tres-bien';
-        }
+        if ($valeur >= 17) return 'Très Bien';
+        if ($valeur >= 15) return 'Bien';
+        if ($valeur >= 12) return 'Assez Bien';
+        if ($valeur >= 10) return 'Passable';
+        if ($valeur >= 6)  return 'Insuffisant';
+        return 'Faible';
     }
 
     public function destroy($id)
@@ -371,14 +363,41 @@ class NotesController extends Controller
         }
         $total_bulletins = $bulletinsQuery->count();
 
+        // Top 5 élèves par moyenne sur la période sélectionnée
+        $topQuery = Inscription::query()->with(['eleve', 'classe']);
+        if ($classe_id) {
+            $topQuery->where('id_classe', $classe_id);
+        }
+        $allInsForTop = $topQuery->get();
+
+        $topStudents = $allInsForTop->map(function ($ins) use ($periode) {
+            $bQuery = Bulletin::where('inscription_id', $ins->id);
+            if ($periode) {
+                $bQuery->where('periode', $periode);
+            }
+            $moy = $bQuery->avg('moyenne_eleve') ?? 0;
+            return [
+                'name'    => ($ins->eleve->nom ?? '') . ' ' . ($ins->eleve->prenom ?? ''),
+                'moyenne' => round((float)$moy, 2),
+                'rang'    => 0,
+                'classe'  => $ins->classe->nom_classe ?? '',
+            ];
+        })
+        ->filter(fn($s) => $s['moyenne'] > 0)
+        ->sortByDesc('moyenne')
+        ->values()
+        ->take(5)
+        ->map(function ($s, $i) { $s['rang'] = $i + 1; return $s; });
+
         return response()->json([
             'success' => true,
             'data' => [
-                'total_eleves' => $total_eleves,
-                'total_matieres' => $total_matieres,
-                'total_notes' => $total_notes,
-                'total_bulletins' => $total_bulletins,
+                'total_eleves'       => $total_eleves,
+                'total_matieres'     => $total_matieres,
+                'total_notes'        => $total_notes,
+                'total_bulletins'    => $total_bulletins,
                 'distribution_notes' => $distribution,
+                'top_students'       => $topStudents,
             ]
         ]);
     }

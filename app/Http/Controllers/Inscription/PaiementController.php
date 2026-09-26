@@ -53,17 +53,96 @@ class PaiementController extends Controller
         DB::beginTransaction();
 
         try {
-            $paiement = Paiement::create([
-                'inscription_id' => $inscription->id,
-                'type_frais_id' => $request->type_frais_id,
-                'type' => $request->type ?? 'paiement_libre',
-                'libelle' => $request->libelle ?? 'Paiement libre',
-                'details' => $request->details,
-                'montant' => $request->montant,
-                'date_paiement' => $request->date_paiement,
-                'reference' => $request->reference ?? $this->genererReference(),
-                'utilisateur_id' => $utilisateurId,
-            ]);
+            $createdPaiement = null;
+
+            if ($request->type === 'reste_avancement') {
+                $reste = $inscription->resteAvancements()
+                    ->where('statut', 'impayé')
+                    ->orderBy('id', 'asc')
+                    ->first();
+
+                $montantRestant = (float) $request->montant;
+
+                if ($reste) {
+                    $montantPaye = min($montantRestant, $reste->montant_rest);
+                    $reste->montant_rest -= $montantPaye;
+                    if ($reste->montant_rest <= 0) {
+                        $reste->statut = 'payé';
+                    }
+                    $reste->save();
+                }
+
+                // Allocate payment to unpaid fraisSimples
+                $fraisSimples = $inscription->fraisAppliques()
+                    ->with('typeFrais')
+                    ->whereHas('typeFrais', function ($query) {
+                        $query->where('libelle', 'not like', 'Scolarité%')
+                              ->where('libelle', 'not like', 'Scolarite%')
+                              ->where('libelle', '!=', 'Cantine');
+                    })
+                    ->orderBy('id')
+                    ->get();
+
+                foreach ($fraisSimples as $frais) {
+                    if ($montantRestant <= 0) {
+                        break;
+                    }
+
+                    // Find how much was already paid for this specific frais
+                    $dejaPaye = Paiement::where('inscription_id', $inscription->id)
+                        ->where('type_frais_id', $frais->id_frais)
+                        ->sum('montant');
+
+                    $resteFrais = (float) $frais->montant - $dejaPaye;
+
+                    if ($resteFrais > 0) {
+                        $montantAPayer = min($montantRestant, $resteFrais);
+
+                        $createdPaiement = Paiement::create([
+                            'inscription_id' => $inscription->id,
+                            'type_frais_id'  => $frais->id_frais,
+                            'type'           => 'autre_frais',
+                            'libelle'        => $frais->typeFrais?->libelle,
+                            'details'        => null,
+                            'montant'        => $montantAPayer,
+                            'date_paiement'  => $request->date_paiement,
+                            'reference'      => $request->reference ?? $this->genererReference(),
+                            'utilisateur_id' => $utilisateurId,
+                        ]);
+
+                        $montantRestant -= $montantAPayer;
+                    }
+                }
+
+                // If there's still money left or no specific frais was unpaid (fallback)
+                if ($montantRestant > 0 || !$createdPaiement) {
+                    $createdPaiement = Paiement::create([
+                        'inscription_id' => $inscription->id,
+                        'type_frais_id' => $request->type_frais_id,
+                        'type' => 'reste_avancement',
+                        'libelle' => $request->libelle ?? 'Paiement Reste Avancement',
+                        'details' => $request->details,
+                        'montant' => $montantRestant > 0 ? $montantRestant : $request->montant,
+                        'date_paiement' => $request->date_paiement,
+                        'reference' => $request->reference ?? $this->genererReference(),
+                        'utilisateur_id' => $utilisateurId,
+                    ]);
+                }
+            } else {
+                $createdPaiement = Paiement::create([
+                    'inscription_id' => $inscription->id,
+                    'type_frais_id' => $request->type_frais_id,
+                    'type' => $request->type ?? 'paiement_libre',
+                    'libelle' => $request->libelle ?? 'Paiement libre',
+                    'details' => $request->details,
+                    'montant' => $request->montant,
+                    'date_paiement' => $request->date_paiement,
+                    'reference' => $request->reference ?? $this->genererReference(),
+                    'utilisateur_id' => $utilisateurId,
+                ]);
+            }
+
+            $paiement = $createdPaiement;
 
             $recu = Recu::create([
                 'numero' => Recu::genererNumero(),

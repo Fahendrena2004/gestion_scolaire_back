@@ -241,7 +241,7 @@ class InscriptionController extends Controller
             if ($montantVerse > 0) {
                 $this->enregistrerPaiementInitial($inscription, $resume, $montantVerse, $utilisateurId);
             }
-            $this->mettreAJourResumePaiement($resume);
+            $this->mettreAJourResume($resume);
 
             // Notification pour l'administration
             \App\Http\Controllers\NotificationController::push(
@@ -296,6 +296,7 @@ class InscriptionController extends Controller
             'paiements.typeFrais',
             'resumePaiement.paiementsMensuels.paiement',
             'presencesCantine.paiement',
+            'resteAvancements',
         ])->find($id);
 
         if (!$inscription) {
@@ -483,7 +484,7 @@ class InscriptionController extends Controller
 
             // Supprimer les résumés et paiements liés pour éviter les erreurs de clés étrangères
             $inscription->fraisAppliques()->delete();
-            
+
             $resume = $inscription->resumePaiement()->first();
             if ($resume) {
                 $resume->paiementsMensuels()->delete();
@@ -682,10 +683,28 @@ class InscriptionController extends Controller
             ->orderBy('id')
             ->get();
 
+        $totalFraisSimples = $fraisSimples->sum('montant');
+        if ($montantVerse < $totalFraisSimples) {
+            \App\Models\Inscription\ResteAvancement::create([
+                'inscription_id' => $inscription->id,
+                'montant_rest'   => $totalFraisSimples - $montantVerse,
+                'statut'         => 'impayé',
+            ]);
+            
+            // --- INTEGRATION FINANCE ---
+            $this->enregistrerFinanceInscription($inscription, $montantVerse, $userId);
+            // ---------------------------
+
+            $this->mettreAJourResumePaiement($resume);
+            return;
+        }
+
         foreach ($fraisSimples as $frais) {
-            if ($montantRestant < $frais->montant) {
-                continue;
+            if ($montantRestant <= 0) {
+                break;
             }
+
+            $montantAPayer = min($montantRestant, (float) $frais->montant);
 
             Paiement::create([
                 'reference'      => $this->genererReferencePaiement(),
@@ -694,15 +713,17 @@ class InscriptionController extends Controller
                 'type'           => 'autre_frais',
                 'libelle'        => $frais->typeFrais?->libelle,
                 'details'        => null,
-                'montant'        => $frais->montant,
+                'montant'        => $montantAPayer,
                 'date_paiement'  => now(),
                 'utilisateur_id' => $userId,
             ]);
 
-            $montantRestant -= (float) $frais->montant;
+            $montantRestant -= $montantAPayer;
         }
 
+                // Allocate remaining amount to monthly tuition payments, skipping months already paid
         if ($montantRestant > 0) {
+            // Create a payment record for the remaining tuition amount
             $paiementScolarite = Paiement::create([
                 'reference'      => $this->genererReferencePaiement(),
                 'inscription_id' => $inscription->id,
@@ -714,52 +735,73 @@ class InscriptionController extends Controller
                 'utilisateur_id' => $userId,
             ]);
 
-            // Allouer le montant aux mois de scolarité
+            // Allocate the amount to monthly tuition payments, skipping months already paid
             $typeFraisScolarite = $this->getTypeFrais($this->getLibelleScolarite($inscription->classe->niveau->cycle), $inscription->id_annee_scolaire);
             $montantMensuel = $typeFraisScolarite ? (float) $typeFraisScolarite->montant : 0;
-            
+
             if ($montantMensuel > 0) {
                 $anneeScolaire = $inscription->anneeScolaire;
                 $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
                 $currentDate = Carbon::parse($dateDebutStr)->startOfMonth();
-                
+
                 $montantAlloue = 0;
                 while (($montantRestant - $montantAlloue) >= ($montantMensuel - 0.01)) {
+                    // Skip if a payment for this month already exists
+                    $existing = \App\Models\Paiement\PaiementMensuel::where('resume_id', $resume->id)
+                        ->where('mois', $currentDate->month)
+                        ->where('annee', $currentDate->year)
+                        ->first();
+                    if ($existing) {
+                        $currentDate->addMonth();
+                        continue;
+                    }
+
                     \App\Models\Paiement\PaiementMensuel::create([
-                        'resume_id' => $resume->id,
-                        'mois' => $currentDate->month,
-                        'annee' => $currentDate->year,
-                        'montant' => $montantMensuel,
+                        'resume_id'   => $resume->id,
+                        'mois'        => $currentDate->month,
+                        'annee'       => $currentDate->year,
+                        'montant'     => $montantMensuel,
                         'paiement_id' => $paiementScolarite->id,
                     ]);
                     $montantAlloue += $montantMensuel;
                     $currentDate->addMonth();
                 }
             }
+        }        $typeFraisScolarite = $this->getTypeFrais($this->getLibelleScolarite($inscription->classe->niveau->cycle), $inscription->id_annee_scolaire);
+        $montantMensuel = $typeFraisScolarite ? (float) $typeFraisScolarite->montant : 0;
+
+        if ($montantMensuel > 0) {
+            $anneeScolaire = $inscription->anneeScolaire;
+            $dateDebutStr = $anneeScolaire?->date_debut ?? (date('Y') . '-09-01');
+            $currentDate = Carbon::parse($dateDebutStr)->startOfMonth();
+
+            $montantAlloue = 0;
+            while (($montantRestant - $montantAlloue) >= ($montantMensuel - 0.01)) {
+                // Check if a monthly payment already exists for this month
+                $existing = \App\Models\Paiement\PaiementMensuel::where('resume_id', $resume->id)
+                    ->where('mois', $currentDate->month)
+                    ->where('annee', $currentDate->year)
+                    ->first();
+                if ($existing) {
+                    // Month already has a payment, skip allocation but still advance date
+                    $currentDate->addMonth();
+                    continue;
+                }
+
+                \App\Models\Paiement\PaiementMensuel::create([
+                    'resume_id' => $resume->id,
+                    'mois' => $currentDate->month,
+                    'annee' => $currentDate->year,
+                    'montant' => $montantMensuel,
+                    'paiement_id' => $paiementScolarite->id,
+                ]);
+                $montantAlloue += $montantMensuel;
+                $currentDate->addMonth();
+            }
         }
 
         // --- INTEGRATION FINANCE ---
-        if ($montantVerse > 0) {
-            $typeInscription = CategorieEntree::where('nom', 'like', '%Inscription%')->first();
-            if ($typeInscription) {
-                Entree::create([
-                    'reference' => 'ENT-INS-' . time(),
-                    'montant' => $montantVerse,
-                    'date_entree' => now(),
-                    'type_entree_id' => $typeInscription->id,
-                    'inscription_id' => $inscription->id,
-                    'annee_scolaire_id' => $inscription->id_annee_scolaire,
-                    'description' => 'Paiement initial lors de l\'inscription',
-                    'created_by' => $userId
-                ]);
-
-                $caisse = Caisse::firstOrCreate(
-                    ['annee_scolaire_id' => $inscription->id_annee_scolaire],
-                    ['nom' => 'Caisse Principale', 'solde' => 0]
-                );
-                $caisse->increment('solde', $montantVerse);
-            }
-        }
+        $this->enregistrerFinanceInscription($inscription, $montantVerse, $userId);
         // ---------------------------
 
         $this->mettreAJourResumePaiement($resume);
@@ -808,6 +850,37 @@ private function getTypeFrais(string $libelle, ?int $anneeScolaireId): ?TypeFrai
             'lycee'    => 'Scolarité - Lycée',
             default    => 'Scolarité',
         };
+    }
+    private function mettreAJourResume(ResumePaiement $resume): void
+    {
+        $this->mettreAJourResumePaiement($resume);
+    }
+
+    // Helper to record finance entry for inscription payments
+    private function enregistrerFinanceInscription(Inscription $inscription, float $montantVerse, ?int $userId): void
+    {
+        if ($montantVerse <= 0) {
+            return;
+        }
+        $typeInscription = CategorieEntree::where('nom', 'like', '%Inscription%')->first();
+        if ($typeInscription) {
+            Entree::create([
+                'reference' => 'ENT-INS-' . time(),
+                'montant' => $montantVerse,
+                'date_entree' => now(),
+                'type_entree_id' => $typeInscription->id,
+                'inscription_id' => $inscription->id,
+                'annee_scolaire_id' => $inscription->id_annee_scolaire,
+                'description' => 'Paiement initial lors de l\'inscription',
+                'created_by' => $userId,
+            ]);
+
+            $caisse = Caisse::firstOrCreate(
+                ['annee_scolaire_id' => $inscription->id_annee_scolaire],
+                ['nom' => 'Caisse Principale', 'solde' => 0]
+            );
+            $caisse->increment('solde', $montantVerse);
+        }
     }
 
     private function compterMoisScolaires(AnneeScolaire $anneeScolaire): int
